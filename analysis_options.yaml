@@ -1,0 +1,24 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+
+linter:
+  rules:
+    # Flutter 표준 스타일 유지 — 80자 제한/생성자 순서 등 과한 규칙은 비활성
+    avoid_print: true
+    prefer_const_constructors: true
+    prefer_const_constructors_in_immutables: true
+    prefer_final_locals: true
+    unnecessary_const: true
+    unnecessary_new: true
+    unawaited_futures: true
+    use_key_in_widget_constructors: true
+    avoid_relative_lib_imports: true
+    avoid_empty_else: true
+    empty_catches: true
+    curly_braces_in_flow_control_structures: true
+    sort_child_properties_last: true

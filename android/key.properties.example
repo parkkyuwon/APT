@@ -1,0 +1,12 @@
+# Play Store 릴리스 서명 키스토어 설정 템플릿
+# 실제 사용 시 key.properties 로 이름을 바꾸고 값을 채우세요.
+# key.properties 는 .gitignore 에 포함되어 커밋되지 않습니다.
+#
+# 키스토어 생성:
+#   keytool -genkeypair -v -keystore D:/vsCodeProg/APT-APP/apt-upload.jks \
+#     -alias apt -keyalg RSA -keysize 2048 -validity 10000
+#
+storePassword=CHANGE_ME
+keyPassword=CHANGE_ME
+keyAlias=apt
+storeFile=../apt-upload.jks

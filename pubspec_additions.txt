@@ -1,0 +1,25 @@
+# === 아이콘 자동 생성용 devDependency (선택) ===
+#
+# 아래를 pubspec.yaml 의 dev_dependencies 에 추가하면
+# flutter_launcher_icons 로 모든 플랫폼 아이콘을 한 번에 생성할 수 있습니다.
+#
+# dev_dependencies:
+#   flutter_launcher_icons: ^0.14.1
+#
+# pubspec.yaml 말미에 추가:
+#
+# flutter_launcher_icons:
+#   android: "ic_launcher"
+#   ios: true
+#   image_path: "assets/images/app_icon.png"
+#   adaptive_icon_background: "#2196F3"
+#   adaptive_icon_foreground: "assets/images/app_icon_foreground.png"
+#   min_sdk_android: 23
+#   remove_alpha_ios: true
+#
+# 실행:
+#   flutter pub run flutter_launcher_icons
+#
+# 준비할 파일:
+#   assets/images/app_icon.png            — 1024x1024 PNG (사각 배경 포함)
+#   assets/images/app_icon_foreground.png — 1024x1024 PNG (투명 배경, 중앙 60% 영역만 사용)
