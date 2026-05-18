@@ -16,6 +16,9 @@ enum AuthStage {
   /// 비로그인
   anonymous,
 
+  /// 비회원 게스트 — 읽기 전용 주차 현황 모니터링
+  guest,
+
   /// 관리자 승인 대기 (pending)
   pending,
 
@@ -184,6 +187,21 @@ class AuthProvider extends ChangeNotifier {
       _session = null;
       _stage = AuthStage.anonymous;
       _setBusy(false);
+    }
+  }
+
+  /// 로그인 화면에서 "비회원으로 둘러보기" 진입. 비지속(캐시 기록 없음).
+  void enterGuestMode() {
+    _stage = AuthStage.guest;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  /// 게스트 → 로그인 화면 복귀.
+  void exitGuestMode() {
+    if (_stage == AuthStage.guest) {
+      _stage = AuthStage.anonymous;
+      notifyListeners();
     }
   }
 
