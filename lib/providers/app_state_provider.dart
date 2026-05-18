@@ -27,6 +27,7 @@ class AppStateProvider extends ChangeNotifier with WidgetsBindingObserver {
   DateTime? _lastUpdated;
   Timer? _pollTimer;
   bool _started = false;
+  bool _guestMode = false;
   AppLifecycleState _lifecycle = AppLifecycleState.resumed;
 
   @override
@@ -52,6 +53,7 @@ class AppStateProvider extends ChangeNotifier with WidgetsBindingObserver {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   DateTime? get lastUpdated => _lastUpdated;
+  bool get isGuestMode => _guestMode;
 
   /// approved 전환 시 호출. 캐시된 상태가 있으면 즉시 노출하고,
   /// 백그라운드로 최신 상태를 받아 동기화한다.
@@ -69,6 +71,15 @@ class AppStateProvider extends ChangeNotifier with WidgetsBindingObserver {
     _startPollTimer();
   }
 
+  /// 게스트 진입 시 호출. /api/public-dashboard 에서 점유 여부만 받는다.
+  /// 영속 캐시는 사용하지 않는다(회원 PII 캐시와 분리).
+  Future<void> startGuest() async {
+    _guestMode = true;
+    _started = true;
+    await refresh();
+    _startPollTimer();
+  }
+
   void stop() {
     _pollTimer?.cancel();
     _pollTimer = null;
@@ -80,10 +91,12 @@ class AppStateProvider extends ChangeNotifier with WidgetsBindingObserver {
     _errorMessage = null;
     notifyListeners();
     try {
-      _state = await _services.state.fetch();
+      _state = _guestMode
+          ? await _services.publicDashboard.fetch()
+          : await _services.state.fetch();
       _lastUpdated = DateTime.now();
       // 비동기 캐시 저장 — UI 블록하지 않음.
-      unawaited(StateCache.save(_state));
+      if (!_guestMode) unawaited(StateCache.save(_state));
       _connectivity?.markOnline();
     } on ApiException catch (e) {
       _errorMessage = e.message;
@@ -201,6 +214,7 @@ class AppStateProvider extends ChangeNotifier with WidgetsBindingObserver {
     _errorMessage = null;
     _isLoading = false;
     _started = false;
+    _guestMode = false;
     await StateCache.clear();
     notifyListeners();
   }
