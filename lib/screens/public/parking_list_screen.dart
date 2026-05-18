@@ -8,16 +8,29 @@ import '../../providers/app_state_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme.dart';
 import '../../widgets/slot_dialog.dart';
+import 'slot_filter.dart';
 
 /// [parking-list.html] — 타입별 섹션으로 전체 슬롯을 나열.
-class ParkingListScreen extends StatelessWidget {
+class ParkingListScreen extends StatefulWidget {
   const ParkingListScreen({super.key});
+
+  @override
+  State<ParkingListScreen> createState() => _ParkingListScreenState();
+}
+
+class _ParkingListScreenState extends State<ParkingListScreen> {
+  SlotFilter _filter = SlotFilter.all;
 
   Future<void> _onTap(BuildContext context, ParkingSlot slot) async {
     final auth = context.read<AuthProvider>();
     final app = context.read<AppStateProvider>();
     final session = auth.session;
-    if (session == null) return;
+    if (session == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('로그인이 필요합니다.')),
+      );
+      return;
+    }
     final detail = app.state.slotDetails[slot.id] ?? const SlotDetail();
     final result = await showSlotDialog(
       context,
@@ -54,6 +67,13 @@ class ParkingListScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = context.watch<AppStateProvider>();
     final state = app.state;
+
+    final visibleTypes = <int>[];
+    for (var i = 0; i < chargerTypes.length; i++) {
+      final all = state.slots[chargerTypes[i].id] ?? const [];
+      if (filterSlots(all, state, _filter).isNotEmpty) visibleTypes.add(i);
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('전체 주차칸'),
@@ -63,65 +83,93 @@ class ParkingListScreen extends StatelessWidget {
             onPressed: app.isLoading ? null : app.refresh,
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            child: SegmentedButton<SlotFilter>(
+              segments: const [
+                ButtonSegment(value: SlotFilter.all, label: Text('전체')),
+                ButtonSegment(value: SlotFilter.occupied, label: Text('사용중')),
+                ButtonSegment(value: SlotFilter.available, label: Text('미사용')),
+              ],
+              selected: {_filter},
+              onSelectionChanged: (s) => setState(() => _filter = s.first),
+            ),
+          ),
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: app.refresh,
-        child: ListView.builder(
-          padding: const EdgeInsets.all(12),
-          itemCount: chargerTypes.length,
-          itemBuilder: (_, sectionIdx) {
-            final type = chargerTypes[sectionIdx];
-            final slots = state.slots[type.id] ?? const [];
-            var occupied = 0;
-            for (final s in slots) {
-              final d = state.slotDetails[s.id];
-              if (d != null && d.isOccupied) occupied++;
-            }
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                  color: ChargerColors.forBadgeClass(type.badgeClass),
-                  width: 3,
-                ),
-              ),
-              child: Padding(
+        child: visibleTypes.isEmpty
+            ? ListView(
+                children: const [
+                  SizedBox(height: 120),
+                  Center(child: Text('조건에 맞는 주차칸이 없습니다.')),
+                ],
+              )
+            : ListView.builder(
                 padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          type.name,
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '$occupied / ${slots.length}',
-                            style: const TextStyle(fontSize: 12, color: Colors.blue),
-                          ),
-                        ),
-                      ],
+                itemCount: visibleTypes.length,
+                itemBuilder: (_, idx) {
+                  final type = chargerTypes[visibleTypes[idx]];
+                  final allSlots = state.slots[type.id] ?? const [];
+                  final shown = filterSlots(allSlots, state, _filter);
+                  var occupied = 0;
+                  for (final s in allSlots) {
+                    final d = state.slotDetails[s.id];
+                    if (d != null && d.isOccupied) occupied++;
+                  }
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: ChargerColors.forBadgeClass(type.badgeClass),
+                        width: 3,
+                      ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(type.description,
-                        style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                    const Divider(),
-                    for (final s in slots) _row(context, s, state),
-                  ],
-                ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                type.name,
+                                style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade50,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '$occupied / ${allSlots.length}',
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.blue),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(type.description,
+                              style: const TextStyle(
+                                  fontSize: 12, color: Colors.black54)),
+                          const Divider(),
+                          for (final s in shown) _row(context, s, state),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
-            );
-          },
-        ),
       ),
     );
   }
