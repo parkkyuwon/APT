@@ -13,6 +13,7 @@ import 'screens/onboarding/consent_screen.dart';
 import 'screens/onboarding/pending_screen.dart';
 import 'screens/onboarding/photo_verification_screen.dart';
 import 'screens/onboarding/profile_setup_screen.dart';
+import 'screens/public/guest_shell_screen.dart';
 import 'screens/public/shell_screen.dart';
 import 'screens/splash_screen.dart';
 import 'services/services.dart';
@@ -68,6 +69,8 @@ class _RootNavigator extends StatelessWidget {
         return const SplashScreen();
       case AuthStage.anonymous:
         return const LoginScreen();
+      case AuthStage.guest:
+        return const GuestShellScreen();
       case AuthStage.pending:
         return const PendingScreen();
       case AuthStage.needsProfileSetup:

@@ -45,6 +45,14 @@ class LoginScreen extends StatelessWidget {
                   minimumSize: const Size.fromHeight(48),
                 ),
               ),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: auth.isBusy
+                    ? null
+                    : () => context.read<AuthProvider>().enterGuestMode(),
+                icon: const Icon(Icons.visibility_outlined),
+                label: const Text('비회원으로 둘러보기'),
+              ),
               if (err != null && err.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Text(err, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
