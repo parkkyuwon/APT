@@ -58,6 +58,13 @@ class AppStateProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// approved 전환 시 호출. 캐시된 상태가 있으면 즉시 노출하고,
   /// 백그라운드로 최신 상태를 받아 동기화한다.
   Future<void> start() async {
+    if (_guestMode) {
+      // 게스트에서 회원으로 전환 — 게스트 상태를 초기화하고 회원 흐름으로 재시작
+      _guestMode = false;
+      _started = false;
+      _pollTimer?.cancel();
+      _pollTimer = null;
+    }
     if (!_started) {
       _started = true;
       final cached = StateCache.load();

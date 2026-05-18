@@ -70,6 +70,10 @@ class _ParkingListScreenState extends State<ParkingListScreen> {
 
     final visibleTypes = <int>[];
     for (var i = 0; i < chargerTypes.length; i++) {
+      if (_filter == SlotFilter.all) {
+        visibleTypes.add(i);
+        continue;
+      }
       final all = state.slots[chargerTypes[i].id] ?? const [];
       if (filterSlots(all, state, _filter).isNotEmpty) visibleTypes.add(i);
     }
