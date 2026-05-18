@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../core/api_client.dart';
+import '../core/json_utils.dart';
 import '../models/user.dart';
 
 /// /api/profile — 프로필 조회/수정/동의/탈퇴.
@@ -13,7 +14,7 @@ class ProfileApi {
     try {
       final res = await _client.dio.get<dynamic>('/api/profile');
       final body = await _client.requireOk(res);
-      final profile = (body['profile'] as Map?)?.cast<String, dynamic>();
+      final profile = asMapOrNull(body['profile']);
       if (profile == null) {
         throw StateError('profile missing in response');
       }
@@ -41,7 +42,7 @@ class ProfileApi {
       };
       final res = await _client.dio.post<dynamic>('/api/profile', data: payload);
       final body = await _client.requireOk(res);
-      final profile = (body['profile'] as Map?)?.cast<String, dynamic>();
+      final profile = asMapOrNull(body['profile']);
       if (profile == null) {
         throw StateError('profile missing in response');
       }

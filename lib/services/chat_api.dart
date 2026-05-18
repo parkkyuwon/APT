@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../core/api_client.dart';
+import '../core/json_utils.dart';
 import '../models/chat_message.dart';
 
 /// /api/chat — approved 세션 전용 채팅.
@@ -19,8 +20,9 @@ class ChatApi {
         },
       );
       final body = await _client.requireOk(res);
-      final list = (body['messages'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
-      return list.map(ChatMessage.fromJson).toList(growable: false);
+      return asListOfMaps(body['messages'])
+          .map(ChatMessage.fromJson)
+          .toList(growable: false);
     } on DioException catch (e) {
       _client.rethrowAsApp(e);
     }
@@ -34,7 +36,7 @@ class ChatApi {
         data: {'message': message},
       );
       final body = await _client.requireOk(res);
-      final m = (body['message'] as Map?)?.cast<String, dynamic>();
+      final m = asMapOrNull(body['message']);
       if (m == null) throw StateError('chat message missing in response');
       return ChatMessage.fromJson(m);
     } on DioException catch (e) {
@@ -51,7 +53,7 @@ class ChatApi {
         data: {'message': message},
       );
       final body = await _client.requireOk(res);
-      final m = (body['message'] as Map?)?.cast<String, dynamic>();
+      final m = asMapOrNull(body['message']);
       if (m == null) throw StateError('chat message missing in response');
       return ChatMessage.fromJson(m);
     } on DioException catch (e) {

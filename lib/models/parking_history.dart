@@ -27,21 +27,17 @@ class ParkingHistoryRecord {
   final DateTime? createdAt;
 
   factory ParkingHistoryRecord.fromJson(Map<String, dynamic> json) {
-    DateTime? parse(dynamic v) => v == null ? null : DateTime.tryParse(v.toString());
-    String s(String camel, String snake) =>
-        (json[camel] as String?) ?? (json[snake] as String?) ?? '';
-
     return ParkingHistoryRecord(
       id: asInt(json['id']),
-      userEmail: s('userEmail', 'user_email'),
-      slotId: s('slotId', 'slot_id'),
-      vehicleNumber: s('vehicleNumber', 'vehicle_number'),
-      contact: (json['contact'] as String?) ?? '',
-      startTime: parse(json['startTime'] ?? json['start_time']),
-      endTime: parse(json['endTime'] ?? json['end_time']),
-      chargeDuration: s('chargeDuration', 'charge_duration'),
-      status: (json['status'] as String?) ?? '',
-      createdAt: parse(json['createdAt'] ?? json['created_at']),
+      userEmail: firstStr(json, 'userEmail', 'user_email'),
+      slotId: firstStr(json, 'slotId', 'slot_id'),
+      vehicleNumber: firstStr(json, 'vehicleNumber', 'vehicle_number'),
+      contact: asStr(json['contact']),
+      startTime: asDateTimeOrNull(json['startTime'] ?? json['start_time']),
+      endTime: asDateTimeOrNull(json['endTime'] ?? json['end_time']),
+      chargeDuration: firstStr(json, 'chargeDuration', 'charge_duration'),
+      status: asStr(json['status']),
+      createdAt: asDateTimeOrNull(json['createdAt'] ?? json['created_at']),
     );
   }
 }

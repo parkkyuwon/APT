@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../core/api_client.dart';
+import '../core/json_utils.dart';
 import '../models/parking_history.dart';
 import '../models/user.dart';
 
@@ -19,11 +20,12 @@ class MyHistoryApi {
         },
       );
       final body = await _client.requireOk(res);
-      final userJson = (body['user'] as Map?)?.cast<String, dynamic>();
-      final list = (body['history'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+      final userJson = asMapOrNull(body['user']);
       return MyHistoryResult(
         user: userJson == null ? null : AppUser.fromJson(userJson),
-        records: list.map(ParkingHistoryRecord.fromJson).toList(growable: false),
+        records: asListOfMaps(body['history'])
+            .map(ParkingHistoryRecord.fromJson)
+            .toList(growable: false),
       );
     } on DioException catch (e) {
       _client.rethrowAsApp(e);
@@ -50,12 +52,13 @@ class MyHistoryApi {
         },
       );
       final body = await _client.requireOk(res);
-      final list = (body['records'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
       return AdminHistoryPage(
-        records: list.map(ParkingHistoryRecord.fromJson).toList(growable: false),
-        hasMore: body['hasMore'] == true,
-        offset: (body['offset'] as num?)?.toInt() ?? offset,
-        limit: (body['limit'] as num?)?.toInt() ?? limit,
+        records: asListOfMaps(body['records'])
+            .map(ParkingHistoryRecord.fromJson)
+            .toList(growable: false),
+        hasMore: asBool(body['hasMore']),
+        offset: asInt(body['offset'], offset),
+        limit: asInt(body['limit'], limit),
       );
     } on DioException catch (e) {
       _client.rethrowAsApp(e);

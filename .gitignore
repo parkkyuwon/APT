@@ -108,3 +108,6 @@ android/app/upload-keystore.jks
 *.jks
 !**/debug.keystore
 apt-upload.jks
+
+# Build output (AAB bundles — never commit, 57MB artifacts)
+/AppBundle/

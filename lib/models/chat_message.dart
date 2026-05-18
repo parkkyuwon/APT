@@ -21,20 +21,14 @@ class ChatMessage {
   final DateTime? editedAt;
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
-    DateTime? parse(dynamic v) =>
-        v == null ? null : DateTime.tryParse(v.toString());
-
-    String pick(String camel, String snake) =>
-        (json[camel] as String?) ?? (json[snake] as String?) ?? '';
-
     return ChatMessage(
       id: asInt(json['id']),
-      authorEmail: pick('authorEmail', 'author_email'),
-      authorNickname: pick('authorNickname', 'author_nickname'),
-      authorRole: pick('authorRole', 'author_role'),
-      message: (json['message'] as String?) ?? '',
-      createdAt: parse(json['createdAt'] ?? json['created_at']),
-      editedAt: parse(json['editedAt'] ?? json['edited_at']),
+      authorEmail: firstStr(json, 'authorEmail', 'author_email'),
+      authorNickname: firstStr(json, 'authorNickname', 'author_nickname'),
+      authorRole: firstStr(json, 'authorRole', 'author_role'),
+      message: asStr(json['message']),
+      createdAt: asDateTimeOrNull(json['createdAt'] ?? json['created_at']),
+      editedAt: asDateTimeOrNull(json['editedAt'] ?? json['edited_at']),
     );
   }
 }

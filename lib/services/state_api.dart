@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../core/api_client.dart';
+import '../core/json_utils.dart';
 import '../models/app_state.dart';
 
 /// /api/state — 주차 현황 전체 조회/변경.
@@ -15,8 +16,7 @@ class StateApi {
     try {
       final res = await _client.dio.get<dynamic>('/api/state');
       final body = await _client.requireOk(res);
-      final stateJson = (body['state'] as Map?)?.cast<String, dynamic>() ?? const {};
-      return AppState.fromJson(stateJson);
+      return AppState.fromJson(asMapOrNull(body['state']) ?? const {});
     } on DioException catch (e) {
       _client.rethrowAsApp(e);
     }
@@ -29,8 +29,7 @@ class StateApi {
       _client.etagCache.invalidate('/api/state');
       final res = await _client.dio.post<dynamic>('/api/state', data: payload);
       final body = await _client.requireOk(res);
-      final stateJson = (body['state'] as Map?)?.cast<String, dynamic>() ?? const {};
-      return AppState.fromJson(stateJson);
+      return AppState.fromJson(asMapOrNull(body['state']) ?? const {});
     } on DioException catch (e) {
       _client.rethrowAsApp(e);
     }

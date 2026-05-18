@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../core/api_client.dart';
+import '../core/json_utils.dart';
 import '../models/user.dart';
 
 /// /api/users — 관리자 전용 회원 관리.
@@ -26,8 +27,9 @@ class UsersApi {
         },
       );
       final body = await _client.requireOk(res);
-      final list = (body['users'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
-      return list.map(AppUser.fromJson).toList(growable: false);
+      return asListOfMaps(body['users'])
+          .map(AppUser.fromJson)
+          .toList(growable: false);
     } on DioException catch (e) {
       _client.rethrowAsApp(e);
     }

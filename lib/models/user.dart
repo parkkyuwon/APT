@@ -1,4 +1,5 @@
 import '../core/errors.dart';
+import '../core/json_utils.dart';
 
 /// profile 응답 (GET /api/profile) + users 목록 응답 공통 사용.
 class AppUser {
@@ -41,33 +42,24 @@ class AppUser {
   bool get isAdmin => role == 'admin';
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
-    DateTime? parse(dynamic value) {
-      if (value == null) return null;
-      if (value is String && value.isEmpty) return null;
-      return DateTime.tryParse(value.toString());
-    }
-
-    // 서버는 snake_case/camelCase 를 혼용한다 ([profile.js], [users.js] 참고).
-    String first(String camel, String snake) =>
-        (json[camel] as String?) ?? (json[snake] as String?) ?? '';
-
+    final role = asStr(json['role']);
     return AppUser(
-      email: (json['email'] as String?) ?? '',
-      name: (json['name'] as String?) ?? '',
-      nickname: (json['nickname'] as String?) ?? '',
-      picture: (json['picture'] as String?) ?? '',
-      status: authStatusFromString(json['status'] as String?),
-      role: (json['role'] as String?) ?? 'user',
-      vehicleNumber: first('vehicleNumber', 'vehicle_number'),
-      phoneNumber: first('phoneNumber', 'phone_number'),
-      profileComplete: json['profileComplete'] == true,
-      vehicleVerified: json['vehicle_verified'] == true || json['vehicleVerified'] == true,
-      createdAt: parse(json['createdAt'] ?? json['created_at']),
-      approvedAt: parse(json['approvedAt'] ?? json['approved_at']),
-      approvedBy: first('approvedBy', 'approved_by'),
-      withdrawnAt: parse(json['withdrawn_at'] ?? json['withdrawnAt']),
-      consentAt: parse(json['consent_at'] ?? json['consentAt']),
-      vehiclePhoto: first('vehiclePhoto', 'vehicle_photo'),
+      email: asStr(json['email']),
+      name: asStr(json['name']),
+      nickname: asStr(json['nickname']),
+      picture: asStr(json['picture']),
+      status: authStatusFromString(asStrOrNull(json['status'])),
+      role: role.isEmpty ? 'user' : role,
+      vehicleNumber: firstStr(json, 'vehicleNumber', 'vehicle_number'),
+      phoneNumber: firstStr(json, 'phoneNumber', 'phone_number'),
+      profileComplete: asBool(json['profileComplete']),
+      vehicleVerified: asBool(json['vehicle_verified']) || asBool(json['vehicleVerified']),
+      createdAt: asDateTimeOrNull(json['createdAt'] ?? json['created_at']),
+      approvedAt: asDateTimeOrNull(json['approvedAt'] ?? json['approved_at']),
+      approvedBy: firstStr(json, 'approvedBy', 'approved_by'),
+      withdrawnAt: asDateTimeOrNull(json['withdrawn_at'] ?? json['withdrawnAt']),
+      consentAt: asDateTimeOrNull(json['consent_at'] ?? json['consentAt']),
+      vehiclePhoto: firstStr(json, 'vehiclePhoto', 'vehicle_photo'),
     );
   }
 }

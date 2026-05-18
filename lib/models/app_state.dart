@@ -1,3 +1,4 @@
+import '../core/json_utils.dart';
 import 'charger_type.dart';
 import 'parking_slot.dart';
 
@@ -54,62 +55,63 @@ class AppState {
 
   factory AppState.fromJson(Map<String, dynamic> json) {
     final counts = <String, int>{};
-    final rawCounts = (json['counts'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final rawCounts = asMapOrNull(json['counts']) ?? const {};
     for (final t in chargerTypes) {
-      counts[t.id] = (rawCounts[t.id] as num?)?.toInt() ?? t.defaultCount;
+      counts[t.id] = asInt(rawCounts[t.id], t.defaultCount);
     }
 
     final slots = <String, List<ParkingSlot>>{};
-    final rawSlots = (json['slots'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final rawSlots = asMapOrNull(json['slots']) ?? const {};
     if (rawSlots.isEmpty) {
       slots.addAll(_generateDefaultSlots(counts: counts));
     } else {
       rawSlots.forEach((typeId, list) {
-        slots[typeId] = (list as List)
-            .map((e) => ParkingSlot.fromJson(Map<String, dynamic>.from(e as Map)))
+        slots[asStr(typeId)] = asListOfMaps(list)
+            .map((m) => ParkingSlot.fromJson(m))
             .toList();
       });
     }
 
     final slotDetails = <String, SlotDetail>{};
-    (json['slotDetails'] as Map?)?.forEach((key, value) {
-      slotDetails[key as String] = SlotDetail.fromJson(Map<String, dynamic>.from(value as Map));
+    asMapOrNull(json['slotDetails'])?.forEach((key, value) {
+      final m = asMapOrNull(value);
+      if (m != null) slotDetails[asStr(key)] = SlotDetail.fromJson(m);
     });
 
     final slotNames = <String, String>{};
-    (json['slotNames'] as Map?)?.forEach((k, v) => slotNames[k as String] = v?.toString() ?? '');
+    asMapOrNull(json['slotNames'])?.forEach((k, v) {
+      slotNames[asStr(k)] = asStr(v);
+    });
 
     final slotImages = <String, String>{};
-    (json['slotImages'] as Map?)?.forEach((k, v) => slotImages[k as String] = v?.toString() ?? '');
+    asMapOrNull(json['slotImages'])?.forEach((k, v) {
+      slotImages[asStr(k)] = asStr(v);
+    });
 
     final slotMapPositions = <String, SlotPosition>{};
-    (json['slotMapPositions'] as Map?)?.forEach((k, v) {
-      if (v is Map) {
-        slotMapPositions[k as String] =
-            SlotPosition.fromJson(Map<String, dynamic>.from(v));
-      }
+    asMapOrNull(json['slotMapPositions'])?.forEach((k, v) {
+      final m = asMapOrNull(v);
+      if (m != null) slotMapPositions[asStr(k)] = SlotPosition.fromJson(m);
     });
 
     final beaconMappings = <String, String>{};
-    (json['beaconMappings'] as Map?)?.forEach((k, v) {
-      final slot = v?.toString().trim() ?? '';
-      if (slot.isNotEmpty) beaconMappings[k as String] = slot;
+    asMapOrNull(json['beaconMappings'])?.forEach((k, v) {
+      final slot = asStr(v).trim();
+      if (slot.isNotEmpty) beaconMappings[asStr(k)] = slot;
     });
 
     final beaconPositions = <String, BeaconPosition>{};
-    (json['beaconPositions'] as Map?)?.forEach((k, v) {
-      if (v is Map) {
-        beaconPositions[k as String] =
-            BeaconPosition.fromJson(Map<String, dynamic>.from(v));
-      }
+    asMapOrNull(json['beaconPositions'])?.forEach((k, v) {
+      final m = asMapOrNull(v);
+      if (m != null) beaconPositions[asStr(k)] = BeaconPosition.fromJson(m);
     });
 
     return AppState(
       adEnabled: json['adEnabled'] != false,
-      maintenanceMode: json['maintenanceMode'] == true,
-      chatRetentionDays: (json['chatRetentionDays'] as num?)?.toInt() ?? 30,
+      maintenanceMode: asBool(json['maintenanceMode']),
+      chatRetentionDays: asInt(json['chatRetentionDays'], 30),
       popupNotice: PopupNotice.fromJson(
-        (json['popupNotice'] as Map?)?.cast<String, dynamic>() ?? const {},
+        asMapOrNull(json['popupNotice']) ?? const {},
       ),
       counts: counts,
       slots: slots,
@@ -184,9 +186,9 @@ class BeaconPosition {
   final double y;
 
   factory BeaconPosition.fromJson(Map<String, dynamic> json) => BeaconPosition(
-        floor: (json['floor'] as String?) ?? 'B1',
-        x: (json['x'] as num?)?.toDouble() ?? 0,
-        y: (json['y'] as num?)?.toDouble() ?? 0,
+        floor: () { final f = asStr(json['floor']); return f.isEmpty ? 'B1' : f; }(),
+        x: asDouble(json['x']),
+        y: asDouble(json['y']),
       );
 
   Map<String, dynamic> toJson() => {'floor': floor, 'x': x, 'y': y};
@@ -203,9 +205,9 @@ class PopupNotice {
       PopupNotice(enabled: false, content: '', autoCloseSeconds: 0);
 
   factory PopupNotice.fromJson(Map<String, dynamic> json) => PopupNotice(
-        enabled: json['enabled'] == true,
-        content: (json['content'] as String?) ?? '',
-        autoCloseSeconds: (json['autoCloseSeconds'] as num?)?.toInt() ?? 0,
+        enabled: asBool(json['enabled']),
+        content: asStr(json['content']),
+        autoCloseSeconds: asInt(json['autoCloseSeconds']),
       );
 
   final bool enabled;
@@ -226,9 +228,9 @@ class SlotPosition {
   final double y;
 
   factory SlotPosition.fromJson(Map<String, dynamic> json) => SlotPosition(
-        floor: (json['floor'] as String?) ?? '',
-        x: (json['x'] as num?)?.toDouble() ?? 0,
-        y: (json['y'] as num?)?.toDouble() ?? 0,
+        floor: asStr(json['floor']),
+        x: asDouble(json['x']),
+        y: asDouble(json['y']),
       );
 
   Map<String, dynamic> toJson() => {'floor': floor, 'x': x, 'y': y};

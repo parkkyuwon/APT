@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../config/app_config.dart';
 import 'errors.dart';
 import 'etag_cache.dart';
+import 'json_utils.dart';
 import 'session_store.dart';
 
 /// 앱 전체에서 공유되는 Dio 인스턴스.
@@ -90,12 +91,12 @@ class ApiClient {
     if (!ok || status >= 400) {
       throw ApiException(
         statusCode: status,
-        message: (body['error'] as String?) ?? '요청을 처리할 수 없습니다.',
-        authStatus: authStatusFromString(body['authStatus'] as String?),
-        needsConsent: body['needsConsent'] == true,
-        needsProfileSetup: body['needsProfileSetup'] == true,
-        needsPhotoVerification: body['needsPhotoVerification'] == true,
-        missing: (body['missing'] as List?)?.cast<String>() ?? const <String>[],
+        message: stringifyError(body['error']) ?? '요청을 처리할 수 없습니다.',
+        authStatus: authStatusFromString(asStrOrNull(body['authStatus'])),
+        needsConsent: asBool(body['needsConsent']),
+        needsProfileSetup: asBool(body['needsProfileSetup']),
+        needsPhotoVerification: asBool(body['needsPhotoVerification']),
+        missing: asListOf<String>(body['missing']),
         rawBody: body,
       );
     }
@@ -112,11 +113,11 @@ class ApiClient {
       if (body is Map) {
         throw ApiException(
           statusCode: response.statusCode ?? -1,
-          message: (body['error'] as String?) ?? error.message ?? 'Unknown error',
-          authStatus: authStatusFromString(body['authStatus'] as String?),
-          needsConsent: body['needsConsent'] == true,
-          needsProfileSetup: body['needsProfileSetup'] == true,
-          needsPhotoVerification: body['needsPhotoVerification'] == true,
+          message: stringifyError(body['error']) ?? error.message ?? 'Unknown error',
+          authStatus: authStatusFromString(asStrOrNull(body['authStatus'])),
+          needsConsent: asBool(body['needsConsent']),
+          needsProfileSetup: asBool(body['needsProfileSetup']),
+          needsPhotoVerification: asBool(body['needsPhotoVerification']),
           rawBody: Map<String, dynamic>.from(body),
         );
       }

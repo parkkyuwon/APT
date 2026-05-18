@@ -1,3 +1,5 @@
+import '../core/json_utils.dart';
+
 /// [state.slots[typeId]] 개별 슬롯. id 형식: "{typeId}-{index+1}" (예: fast50-1)
 class ParkingSlot {
   const ParkingSlot({required this.id, required this.typeId});
@@ -6,8 +8,8 @@ class ParkingSlot {
 
   factory ParkingSlot.fromJson(Map<String, dynamic> json) {
     return ParkingSlot(
-      id: (json['id'] as String?) ?? '',
-      typeId: (json['typeId'] as String?) ?? '',
+      id: asStr(json['id']),
+      typeId: asStr(json['typeId']),
     );
   }
 
@@ -48,15 +50,15 @@ class SlotDetail {
 
   factory SlotDetail.fromJson(Map<String, dynamic> json) {
     return SlotDetail(
-      vehicleNumber: (json['vehicleNumber'] as String?) ?? '',
-      contact: (json['contact'] as String?) ?? '',
-      contactVisible: json['contactVisible'] == true,
-      startTime: (json['startTime'] as String?) ?? '',
-      departureTime: (json['departureTime'] as String?) ?? '',
-      chargeDuration: (json['chargeDuration'] as String?) ?? '',
-      ownerEmail: (json['ownerEmail'] as String?) ?? '',
-      ownerNickname: (json['ownerNickname'] as String?) ?? '',
-      parkingBlocked: json['parkingBlocked'] == true,
+      vehicleNumber: asStr(json['vehicleNumber']),
+      contact: asStr(json['contact']),
+      contactVisible: asBool(json['contactVisible']),
+      startTime: asStr(json['startTime']),
+      departureTime: asStr(json['departureTime']),
+      chargeDuration: asStr(json['chargeDuration']),
+      ownerEmail: asStr(json['ownerEmail']),
+      ownerNickname: asStr(json['ownerNickname']),
+      parkingBlocked: asBool(json['parkingBlocked']),
     );
   }
 

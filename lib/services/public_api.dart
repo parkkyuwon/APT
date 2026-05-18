@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../core/api_client.dart';
+import '../core/json_utils.dart';
 import '../models/app_state.dart';
 
 /// /api/public-dashboard — 비로그인 공개 대시보드 (점유 여부만).
@@ -12,8 +13,7 @@ class PublicDashboardApi {
     try {
       final res = await _client.dio.get<dynamic>('/api/public-dashboard');
       final body = await _client.requireOk(res);
-      final stateJson = (body['state'] as Map?)?.cast<String, dynamic>() ?? const {};
-      return AppState.fromJson(stateJson);
+      return AppState.fromJson(asMapOrNull(body['state']) ?? const {});
     } on DioException catch (e) {
       _client.rethrowAsApp(e);
     }
@@ -29,10 +29,11 @@ class PublicHighlightApi {
     try {
       final res = await _client.dio.get<dynamic>('/api/public-highlight');
       final body = await _client.requireOk(res);
-      final groups = (body['groups'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
       return HighlightResult(
-        totalActive: (body['totalActive'] as num?)?.toInt() ?? 0,
-        groups: groups.map(HighlightGroup.fromJson).toList(growable: false),
+        totalActive: asInt(body['totalActive']),
+        groups: asListOfMaps(body['groups'])
+            .map(HighlightGroup.fromJson)
+            .toList(growable: false),
       );
     } on DioException catch (e) {
       _client.rethrowAsApp(e);
@@ -60,12 +61,13 @@ class HighlightGroup {
   final List<HighlightItem> items;
 
   factory HighlightGroup.fromJson(Map<String, dynamic> json) {
-    final items = (json['items'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
     return HighlightGroup(
-      typeId: (json['typeId'] as String?) ?? '',
-      chargerType: (json['chargerType'] as String?) ?? '',
-      badgeClass: (json['badgeClass'] as String?) ?? '',
-      items: items.map(HighlightItem.fromJson).toList(growable: false),
+      typeId: asStr(json['typeId']),
+      chargerType: asStr(json['chargerType']),
+      badgeClass: asStr(json['badgeClass']),
+      items: asListOfMaps(json['items'])
+          .map(HighlightItem.fromJson)
+          .toList(growable: false),
     );
   }
 }
@@ -88,11 +90,11 @@ class HighlightItem {
   final String chargeDuration;
 
   factory HighlightItem.fromJson(Map<String, dynamic> json) => HighlightItem(
-        slotId: (json['slotId'] as String?) ?? '',
-        slotName: (json['slotName'] as String?) ?? '',
-        vehicleNumberMasked: (json['vehicleNumberMasked'] as String?) ?? '',
-        startTime: (json['startTime'] as String?) ?? '',
-        departureTime: (json['departureTime'] as String?) ?? '',
-        chargeDuration: (json['chargeDuration'] as String?) ?? '',
+        slotId: asStr(json['slotId']),
+        slotName: asStr(json['slotName']),
+        vehicleNumberMasked: asStr(json['vehicleNumberMasked']),
+        startTime: asStr(json['startTime']),
+        departureTime: asStr(json['departureTime']),
+        chargeDuration: asStr(json['chargeDuration']),
       );
 }

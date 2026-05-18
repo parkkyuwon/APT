@@ -1,4 +1,5 @@
 import '../core/errors.dart';
+import '../core/json_utils.dart';
 
 /// [auth.js serializeSession] 및 session-admin/session-public 응답 형태.
 class SessionInfo {
@@ -31,18 +32,19 @@ class SessionInfo {
   bool get isAdmin => role == 'admin' && approved;
 
   factory SessionInfo.fromJson(Map<String, dynamic> json) {
+    final role = asStr(json['role']);
     return SessionInfo(
-      email: (json['email'] as String?) ?? '',
-      name: (json['name'] as String?) ?? '',
-      nickname: (json['nickname'] as String?) ?? '',
-      picture: (json['picture'] as String?) ?? '',
-      role: (json['role'] as String?) ?? 'user',
-      status: authStatusFromString(json['status'] as String?),
-      approved: json['approved'] == true,
-      authType: (json['authType'] as String?) ?? '',
-      vehicleNumber: (json['vehicleNumber'] as String?) ?? '',
-      phoneNumber: (json['phoneNumber'] as String?) ?? '',
-      profileComplete: json['profileComplete'] == true,
+      email: asStr(json['email']),
+      name: asStr(json['name']),
+      nickname: asStr(json['nickname']),
+      picture: asStr(json['picture']),
+      role: role.isEmpty ? 'user' : role,
+      status: authStatusFromString(asStrOrNull(json['status'])),
+      approved: asBool(json['approved']),
+      authType: asStr(json['authType']),
+      vehicleNumber: asStr(json['vehicleNumber']),
+      phoneNumber: asStr(json['phoneNumber']),
+      profileComplete: asBool(json['profileComplete']),
     );
   }
 
@@ -80,14 +82,14 @@ class AuthBootstrap {
   final List<Map<String, dynamic>> pendingUsers;
 
   factory AuthBootstrap.fromJson(Map<String, dynamic> json) {
-    final raw = json['session'];
+    final rawSession = asMapOrNull(json['session']);
     return AuthBootstrap(
-      googleEnabled: json['googleEnabled'] == true,
-      googleClientId: json['googleClientId'] as String?,
-      session: raw is Map<String, dynamic> ? SessionInfo.fromJson(raw) : null,
-      needsConsent: json['needsConsent'] == true,
-      needsPhotoVerification: json['needsPhotoVerification'] == true,
-      pendingUsers: (json['users'] as List?)?.cast<Map<String, dynamic>>() ?? const [],
+      googleEnabled: asBool(json['googleEnabled']),
+      googleClientId: asStrOrNull(json['googleClientId']),
+      session: rawSession == null ? null : SessionInfo.fromJson(rawSession),
+      needsConsent: asBool(json['needsConsent']),
+      needsPhotoVerification: asBool(json['needsPhotoVerification']),
+      pendingUsers: asListOfMaps(json['users']),
     );
   }
 }
