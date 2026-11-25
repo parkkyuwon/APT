@@ -7,7 +7,7 @@ import '../../services/services.dart';
 /// [consent.html](D:/vsCodeProg/APT-Prj/consent.html) 동등 화면.
 ///
 /// 승인된 사용자 중 `consent_at` 이 비어 있는 경우 노출되며, 동의 체크
-/// 후 POST /api/profile { action: "consent", version: "1.0" } 호출.
+/// 후 POST /api/profile { action: "consent", version: "1.3" } 호출.
 class ConsentScreen extends StatefulWidget {
   const ConsentScreen({super.key});
 
@@ -20,41 +20,45 @@ class _ConsentScreenState extends State<ConsentScreen> {
     _ConsentItem(
       field: '이메일, 이름, 프로필 사진',
       purpose: 'Google 계정 인증 및 본인 확인',
-      retention: '탈퇴 시 삭제',
+      retention: '회원 데이터 완전 삭제 시 삭제',
     ),
     _ConsentItem(
       field: '닉네임',
-      purpose: '서비스 내 표시명',
-      retention: '탈퇴 후 7일 삭제',
+      purpose: '서비스 내 표시명과 주차 이용자 구분',
+      retention: '회원 데이터 완전 삭제 시 삭제',
       emphasize: true,
     ),
     _ConsentItem(
-      field: '차량번호',
-      purpose: '주차 슬롯 등록 및 차량 식별',
-      retention: '탈퇴 후 7일 삭제',
-      emphasize: true,
-    ),
-    _ConsentItem(
-      field: '전화번호',
-      purpose: '본인 확인 및 긴급 연락',
-      retention: '탈퇴 후 7일 삭제',
+      field: '차량번호, OCR 비교 후보·상태',
+      purpose: '주차 슬롯 등록, 차량 식별 및 관리자 심사 참고',
+      retention: '회원 데이터 완전 삭제 시 삭제',
       emphasize: true,
     ),
     _ConsentItem(
       field: '차량 사진',
-      purpose: '가입 시 본인 확인 (관리자 검토용)',
-      retention: '관리자 검토 후 즉시 삭제',
+      purpose: '차량 사진 인증이 필요한 경우 번호판 OCR 비교 및 관리자 검토',
+      retention: '관리자 승인·거절, 탈퇴 또는 명시적 개인정보 정리 시 삭제',
       emphasize: true,
     ),
     _ConsentItem(
       field: '주차 이용 이력',
       purpose: '서비스 이용 기록 관리',
-      retention: '탈퇴 후 7일 삭제',
+      retention: '회원 데이터 완전 삭제 시 삭제',
+    ),
+    _ConsentItem(
+      field: '게시글 제목·본문, 작성자 계정·닉네임, 작성·수정 시각',
+      purpose: '승인 회원 대상 단지 이슈 공유',
+      retention: '게시글 삭제 또는 회원 데이터 완전 삭제 시 삭제',
+    ),
+    _ConsentItem(
+      field: '고장 신고 위치·내용·선택 사진, 작성자 계정·닉네임, 시각·처리 상태',
+      purpose: '본인 신고 조회 및 관리자의 고장 접수·처리',
+      retention: '회원 데이터 완전 삭제 시 삭제. 처리 완료 시 자동 삭제하지 않음',
     ),
     _ConsentItem(
       field: '접속 기록 (IP, 브라우저 정보)',
       purpose: '서비스 보안 및 운영',
-      retention: '90일 후 자동 삭제',
+      retention: '운영 기록 정리 정책에 따라 보관·삭제',
     ),
   ];
 
@@ -71,9 +75,10 @@ class _ConsentScreenState extends State<ConsentScreen> {
     });
     try {
       await services.profile.recordConsent();
-      auth.markConsentRecorded();
+      if (!mounted) return;
+      await auth.markConsentRecorded();
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -112,9 +117,18 @@ class _ConsentScreenState extends State<ConsentScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+              const Text(
+                '탈퇴 시 이용을 제한하고 번호판 검토 사진을 삭제합니다. '
+                '7일 재가입 제한 후 재로그인 시 기존 계정을 정리하며, 별도의 7일 자동 삭제 작업은 없습니다. '
+                '관리자의 회원 전체 삭제 시 연결된 게시글·신고·사진·이력을 삭제합니다.',
+                style: TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 16),
               CheckboxListTile(
                 value: _agreed,
-                onChanged: _submitting ? null : (v) => setState(() => _agreed = v ?? false),
+                onChanged: _submitting
+                    ? null
+                    : (v) => setState(() => _agreed = v ?? false),
                 title: const Text('개인정보 수집 및 이용에 동의합니다. (필수)'),
                 controlAffinity: ListTileControlAffinity.leading,
               ),
@@ -163,15 +177,23 @@ class _ConsentScreenState extends State<ConsentScreen> {
   }
 
   Widget _row(_ConsentItem item) {
-    final style = TextStyle(fontSize: 12.5, fontWeight: item.emphasize ? FontWeight.w600 : FontWeight.w400);
+    final style = TextStyle(
+        fontSize: 12.5,
+        fontWeight: item.emphasize ? FontWeight.w600 : FontWeight.w400);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(flex: 3, child: Text(item.field, style: style)),
-          Expanded(flex: 4, child: Text(item.purpose, style: style.copyWith(fontWeight: FontWeight.w400))),
-          Expanded(flex: 3, child: Text(item.retention, style: style.copyWith(fontWeight: FontWeight.w400))),
+          Expanded(
+              flex: 4,
+              child: Text(item.purpose,
+                  style: style.copyWith(fontWeight: FontWeight.w400))),
+          Expanded(
+              flex: 3,
+              child: Text(item.retention,
+                  style: style.copyWith(fontWeight: FontWeight.w400))),
         ],
       ),
     );

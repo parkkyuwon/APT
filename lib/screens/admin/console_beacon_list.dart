@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+
 import 'package:provider/provider.dart';
 
+import '../../core/bluetooth_permissions.dart';
 import '../../models/app_state.dart';
 import '../../providers/app_state_provider.dart';
 import 'beacon_position_editor.dart';
@@ -103,7 +106,7 @@ class _BeaconListView extends StatelessWidget {
         child: Padding(
           padding: EdgeInsets.all(32),
           child: Text(
-            '등록된 비콘이 없습니다.\n관리자 콘솔 → 비콘 스캔 화면에서 비콘을 발견한 뒤 "지도에 위치 지정" 을 눌러 등록할 수 있습니다.',
+            '등록된 비콘이 없습니다.\n관리자 콘솔 → 비콘 스캔 화면에서 비콘을 발견한 뒤 "비콘 설치 위치 지정"을 눌러 등록할 수 있습니다. 측정 당시 내 위치는 "측정 지점 등록"을 사용하세요.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.black54),
           ),
@@ -183,7 +186,9 @@ class _BeaconRow extends StatelessWidget {
       MaterialPageRoute(
         builder: (_) => BeaconPositionEditor(
           beaconId: beaconId,
-          beaconName: label.line2.isEmpty ? label.kind : '${label.kind} · ${label.line2}',
+          beaconName: label.line2.isEmpty
+              ? label.kind
+              : '${label.kind} · ${label.line2}',
         ),
       ),
     );
@@ -192,7 +197,8 @@ class _BeaconRow extends StatelessWidget {
   void _copyId(BuildContext context) {
     Clipboard.setData(ClipboardData(text: beaconId));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('비콘 ID 복사됨'), duration: Duration(seconds: 1)),
+      const SnackBar(
+          content: Text('비콘 ID 복사됨'), duration: Duration(seconds: 1)),
     );
   }
 
@@ -225,7 +231,8 @@ class _BeaconRow extends StatelessWidget {
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(label.kind,
-                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
+                style:
+                    const TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
           ),
           const SizedBox(width: 6),
           Container(
@@ -241,7 +248,8 @@ class _BeaconRow extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: isB1 ? Colors.blue.shade800 : Colors.orange.shade800)),
+                    color:
+                        isB1 ? Colors.blue.shade800 : Colors.orange.shade800)),
           ),
           const SizedBox(width: 6),
           Text(
@@ -329,9 +337,8 @@ class _BeaconMapViewState extends State<_BeaconMapView> {
   @override
   Widget build(BuildContext context) {
     final positions = context.watch<AppStateProvider>().state.beaconPositions;
-    final entries = positions.entries
-        .where((e) => e.value.floor == widget.floor)
-        .toList();
+    final entries =
+        positions.entries.where((e) => e.value.floor == widget.floor).toList();
     final ratio = _floorAspectRatio[widget.floor] ?? 1.0;
     final scale = _viewerCtrl.value.getMaxScaleOnAxis();
     final inverse = scale == 0 ? 1.0 : 1.0 / scale;
@@ -435,18 +442,29 @@ class _LivePositionViewState extends State<_LivePositionView> {
   Future<void> _start() async {
     setState(() => _error = null);
     try {
-      final perms = await [
-        Permission.bluetoothScan,
-        Permission.bluetoothConnect,
-        Permission.locationWhenInUse,
-      ].request();
-      final btOk = (perms[Permission.bluetoothScan]?.isGranted ?? false) &&
-          (perms[Permission.bluetoothConnect]?.isGranted ?? false);
+      final sdkInt = defaultTargetPlatform == TargetPlatform.android
+          ? await queryAndroidSdkInt()
+          : null;
+      if (!mounted) return;
+      final perms = await bluetoothPermissionsFor(
+        defaultTargetPlatform,
+        androidSdkInt: sdkInt,
+      ).request();
+      if (!mounted) return;
+      final btOk = bluetoothPermissionsGranted(
+        defaultTargetPlatform,
+        perms,
+        androidSdkInt: sdkInt,
+      );
       if (!btOk) {
         setState(() => _error = '권한이 필요합니다. 비콘 스캔 화면에서 권한을 허용해 주세요.');
         return;
       }
-      final adapter = await FlutterBluePlus.adapterState.first;
+      final adapter = await FlutterBluePlus.adapterState
+          .where((state) => state != BluetoothAdapterState.unknown)
+          .first
+          .timeout(const Duration(seconds: 10));
+      if (!mounted) return;
       if (adapter != BluetoothAdapterState.on) {
         setState(() => _error = '블루투스를 켜주세요.');
         return;
@@ -456,12 +474,15 @@ class _LivePositionViewState extends State<_LivePositionView> {
       unawaited(_scanSub?.cancel());
       _scanSub = FlutterBluePlus.scanResults.listen(_onResults);
       await FlutterBluePlus.startScan(
+        androidUsesFineLocation: true,
         continuousUpdates: true,
         removeIfGone: const Duration(seconds: 5),
         androidScanMode: AndroidScanMode.lowLatency,
       );
+      if (!mounted) return;
       setState(() => _scanning = true);
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = '스캔 시작 실패: $e';
         _scanning = false;
@@ -518,9 +539,7 @@ class _LivePositionViewState extends State<_LivePositionView> {
       final reg = registered[entry.key];
       if (reg == null) continue;
       if (entry.value.isEmpty) continue;
-      final avg = entry.value
-              .map((s) => s.rssi)
-              .reduce((a, b) => a + b) /
+      final avg = entry.value.map((s) => s.rssi).reduce((a, b) => a + b) /
           entry.value.length;
       active[entry.key] = avg;
     }
@@ -532,9 +551,8 @@ class _LivePositionViewState extends State<_LivePositionView> {
       final f = registered[id]!.floor;
       floorVotes[f] = (floorVotes[f] ?? 0) + 1;
     }
-    final pickedFloor = floorVotes.entries
-        .reduce((a, b) => b.value > a.value ? b : a)
-        .key;
+    final pickedFloor =
+        floorVotes.entries.reduce((a, b) => b.value > a.value ? b : a).key;
 
     // 가중평균 — weight = 10^(rssi/10) (선형 단위 power)
     double sumX = 0, sumY = 0, sumW = 0;
@@ -568,7 +586,7 @@ class _LivePositionViewState extends State<_LivePositionView> {
         child: Padding(
           padding: EdgeInsets.all(32),
           child: Text(
-            '먼저 비콘 스캔 → 지도에 위치 지정 으로 비콘을 2개 이상 등록해 주세요.\n등록된 비콘이 있어야 현위치 추정이 가능합니다.',
+            '먼저 비콘 스캔 → 비콘 설치 위치 지정으로 비콘을 등록해 주세요.\n반복 측정과 공용 위치 추정은 관리자 허브의 "지하 위치 · 신호 지도"를 사용하세요.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.black54),
           ),
@@ -577,11 +595,9 @@ class _LivePositionViewState extends State<_LivePositionView> {
     }
 
     final estimated = _scanning ? _estimate(registered) : null;
-    final floor = estimated?.floor ??
-        (registered.values.first.floor);
-    final floorBeacons = registered.entries
-        .where((e) => e.value.floor == floor)
-        .toList();
+    final floor = estimated?.floor ?? (registered.values.first.floor);
+    final floorBeacons =
+        registered.entries.where((e) => e.value.floor == floor).toList();
 
     return Column(
       children: [
@@ -603,7 +619,8 @@ class _LivePositionViewState extends State<_LivePositionView> {
                       : _scanning
                           ? '비콘 신호 수집 중…'
                           : '스캔 시작 버튼을 눌러 현위치를 추정합니다.',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600),
                 ),
               ),
               FilledButton.icon(
@@ -619,7 +636,8 @@ class _LivePositionViewState extends State<_LivePositionView> {
             width: double.infinity,
             color: Colors.red.shade50,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+            child: Text(_error!,
+                style: const TextStyle(color: Colors.red, fontSize: 12)),
           ),
         Expanded(
           child: _LiveFloorCanvas(
@@ -729,7 +747,9 @@ class _LiveFloorCanvasState extends State<_LiveFloorCanvas> {
                         position: widget.beacons[i].value,
                         parentSize: Size(w, h),
                         inverseScale: inverse,
-                        isActive: widget.samples[widget.beacons[i].key]?.isNotEmpty ?? false,
+                        isActive:
+                            widget.samples[widget.beacons[i].key]?.isNotEmpty ??
+                                false,
                       ),
                     // 추정된 현위치 (파란 원)
                     if (widget.estimated != null)
@@ -788,7 +808,8 @@ class _LivePin extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 2),
               boxShadow: const [
-                BoxShadow(color: Colors.black38, blurRadius: 2, offset: Offset(0, 1)),
+                BoxShadow(
+                    color: Colors.black38, blurRadius: 2, offset: Offset(0, 1)),
               ],
             ),
             child: Text(
@@ -838,7 +859,8 @@ class _UserPositionDot extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.blue.withAlpha(50),
-                  border: Border.all(color: Colors.blue.withAlpha(120), width: 1),
+                  border:
+                      Border.all(color: Colors.blue.withAlpha(120), width: 1),
                 ),
               ),
               Container(
@@ -849,7 +871,10 @@ class _UserPositionDot extends StatelessWidget {
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 3),
                   boxShadow: const [
-                    BoxShadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 2)),
+                    BoxShadow(
+                        color: Colors.black54,
+                        blurRadius: 4,
+                        offset: Offset(0, 2)),
                   ],
                 ),
               ),

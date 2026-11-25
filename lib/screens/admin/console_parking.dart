@@ -36,7 +36,10 @@ class _ConsoleParkingState extends State<ConsoleParking> {
       switch (result.action) {
         case SlotDialogAction.park:
           if (result.detail != null) {
-            await app.upsertSlotDetail(slotId: slot.id, detail: result.detail!);
+            await app.upsertSlotDetail(
+                slotId: slot.id,
+                detail: result.detail!,
+                callAllowed: result.callAllowed);
           }
           break;
         case SlotDialogAction.checkout:
@@ -90,9 +93,11 @@ class _ConsoleParkingState extends State<ConsoleParking> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(type.name,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w700)),
                   Text(type.description,
-                      style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                      style:
+                          const TextStyle(fontSize: 12, color: Colors.black54)),
                   const Divider(),
                   for (final s in slots) _slotRow(s),
                 ],
@@ -141,7 +146,8 @@ class _ConsoleParkingState extends State<ConsoleParking> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  Text(label,
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
                   Text(
                     '${s.id}${detail.vehicleNumber.isEmpty ? "" : " · ${detail.vehicleNumber}"}${detail.ownerNickname.isEmpty ? "" : " · ${detail.ownerNickname}"}',
                     style: const TextStyle(fontSize: 11, color: Colors.black54),

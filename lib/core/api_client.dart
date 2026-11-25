@@ -19,6 +19,7 @@ class ApiClient {
   final Dio _dio;
   final SecureCookieJar _cookieJar;
   final EtagCache _etagCache;
+  int _sessionGeneration = 0;
 
   static ApiClient? _instance;
 
@@ -52,16 +53,21 @@ class ApiClient {
       ),
     );
 
-    dio.interceptors.add(CookieManager(jar));
-    dio.interceptors.add(_RetryInterceptor(dio));
     final etag = EtagCache();
+    final client = ApiClient._(dio, jar, etag);
+    // 쿠키와 ETag가 처리되기 전에 이전 세션의 응답을 차단한다.
+    dio.interceptors.add(_SessionInterceptor(() => client._sessionGeneration));
+    dio.interceptors.add(CookieManager(jar));
+    // CookieManager가 보안 저장소를 기다리는 동안 세션이 바뀔 수 있다.
+    // 요청 전송과 ETag 처리 직전에 다시 검사한다.
+    dio.interceptors.add(_SessionInterceptor(() => client._sessionGeneration));
+    dio.interceptors.add(_RetryInterceptor(dio));
     dio.interceptors.add(_EtagInterceptor(etag));
 
     if (kDebugMode) {
       dio.interceptors.add(_DebugInterceptor());
     }
 
-    final client = ApiClient._(dio, jar, etag);
     _instance = client;
     return client;
   }
@@ -71,7 +77,12 @@ class ApiClient {
   EtagCache get etagCache => _etagCache;
 
   Future<void> clearSession() async {
+    invalidatePendingResponses();
     await _cookieJar.deleteAll();
+  }
+
+  void invalidatePendingResponses() {
+    _sessionGeneration++;
     _etagCache.clear();
   }
 
@@ -95,7 +106,9 @@ class ApiClient {
         authStatus: authStatusFromString(asStrOrNull(body['authStatus'])),
         needsConsent: asBool(body['needsConsent']),
         needsProfileSetup: asBool(body['needsProfileSetup']),
-        needsPhotoVerification: asBool(body['needsPhotoVerification']),
+        needsPhotoVerification: asBool(body['needsPhotoVerification']) ||
+            asStr(body['authStatus']).trim().toLowerCase() ==
+                'needsphotoverification',
         missing: asListOf<String>(body['missing']),
         rawBody: body,
       );
@@ -113,11 +126,14 @@ class ApiClient {
       if (body is Map) {
         throw ApiException(
           statusCode: response.statusCode ?? -1,
-          message: stringifyError(body['error']) ?? error.message ?? 'Unknown error',
+          message:
+              stringifyError(body['error']) ?? error.message ?? 'Unknown error',
           authStatus: authStatusFromString(asStrOrNull(body['authStatus'])),
           needsConsent: asBool(body['needsConsent']),
           needsProfileSetup: asBool(body['needsProfileSetup']),
-          needsPhotoVerification: asBool(body['needsPhotoVerification']),
+          needsPhotoVerification: asBool(body['needsPhotoVerification']) ||
+              asStr(body['authStatus']).trim().toLowerCase() ==
+                  'needsphotoverification',
           rawBody: Map<String, dynamic>.from(body),
         );
       }
@@ -126,12 +142,63 @@ class ApiClient {
   }
 }
 
+class _SessionInterceptor extends Interceptor {
+  _SessionInterceptor(this._generation);
+  final int Function() _generation;
+  static const _key = 'session_generation';
+
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    options.extra.putIfAbsent(_key, _generation);
+    if (options.extra[_key] != _generation()) {
+      handler.reject(DioException(
+        requestOptions: options,
+        type: DioExceptionType.cancel,
+        message: 'Session changed',
+      ));
+      return;
+    }
+    handler.next(options);
+  }
+
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    if (response.requestOptions.extra[_key] != _generation()) {
+      handler.reject(DioException(
+        requestOptions: response.requestOptions,
+        type: DioExceptionType.cancel,
+        message: 'Session changed',
+      ));
+      return;
+    }
+    handler.next(response);
+  }
+
+  @override
+  void onError(DioException error, ErrorInterceptorHandler handler) {
+    if (error.requestOptions.extra[_key] != _generation()) {
+      handler.next(DioException(
+        requestOptions: error.requestOptions,
+        type: DioExceptionType.cancel,
+        message: 'Session changed',
+      ));
+      return;
+    }
+    handler.next(error);
+  }
+}
+
 /// ETag 인터셉터 — GET 요청 중 특정 경로에 자동으로 If-None-Match 를 붙인다.
 class _EtagInterceptor extends Interceptor {
   _EtagInterceptor(this._cache);
   final EtagCache _cache;
 
-  static const _eligiblePaths = <String>{'/api/state', '/api/public-dashboard', '/api/public-highlight'};
+  static const _eligiblePaths = <String>{
+    '/api/state',
+    '/api/indoor-positioning',
+    '/api/public-dashboard',
+    '/api/public-highlight'
+  };
 
   bool _isEligible(String path) => _eligiblePaths.any(path.endsWith);
 

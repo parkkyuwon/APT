@@ -1,0 +1,1717 @@
+{
+  "schemaVersion": "1.0",
+  "updatedAt": "2026-11-23T14:20:00Z",
+  "source": {
+    "diagram": "project-diagram.mmd",
+    "scope": "repository-root",
+    "notes": "핵심 Flutter 모듈과 플랫폼 경계 및 데이터 흐름. 파일 경로는 저장소 루트 기준이다."
+  },
+  "components": [
+    {
+      "id": "app",
+      "name": "앱 초기화와 인증 루트",
+      "kind": "application",
+      "files": [
+        "lib/main.dart"
+      ],
+      "symbols": [
+        "main",
+        "AptEvApp",
+        "AuthStage"
+      ],
+      "responsibilities": [
+        "환경·HTTP 초기화",
+        "Provider 등록",
+        "인증 stage 및 identity에 따른 화면 수명"
+      ]
+    },
+    {
+      "id": "config",
+      "name": "환경과 앱 설정",
+      "kind": "module",
+      "files": [
+        "lib/config/env.dart",
+        "lib/config/app_config.dart"
+      ],
+      "symbols": [
+        "Env",
+        "AppConfig"
+      ],
+      "responsibilities": [
+        "dart-define 설정",
+        "API 기본 주소",
+        "세션/상태 저장소 초기화"
+      ]
+    },
+    {
+      "id": "auth",
+      "name": "인증 상태와 세션 수명",
+      "kind": "module",
+      "files": [
+        "lib/providers/auth_provider.dart",
+        "lib/models/session.dart",
+        "lib/services/auth_api.dart",
+        "lib/core/session_store.dart"
+      ],
+      "symbols": [
+        "AuthProvider",
+        "AuthStage",
+        "SessionInfo",
+        "AuthApi",
+        "SecureCookieJar"
+      ],
+      "responsibilities": [
+        "Google 로그인 및 서버 세션 확인",
+        "세션 generation 무효화",
+        "로그아웃 중 로컬 상태와 저장소 정리",
+        "401 ? ?? ?? ??? ?? ????? ?? ??"
+      ],
+      "tests": [
+        "test/auth_provider_guest_test.dart",
+        "test/session_lifecycle_test.dart",
+        "test/secure_session_storage_test.dart",
+        "test/auth_navigation_test.dart",
+        "test/resident_onboarding_test.dart",
+        "test/consent_restore_test.dart",
+        "test/parking_state_consistency_test.dart"
+      ]
+    },
+    {
+      "id": "parking",
+      "name": "주차 상태와 캐시",
+      "kind": "module",
+      "files": [
+        "lib/providers/app_state_provider.dart",
+        "lib/models/app_state.dart",
+        "lib/models/parking_slot.dart",
+        "lib/models/charger_type.dart",
+        "lib/data/slot_definitions.dart",
+        "lib/core/state_cache.dart",
+        "lib/core/session_info_cache.dart"
+      ],
+      "symbols": [
+        "AppStateProvider",
+        "AppState",
+        "ParkingSlot",
+        "SlotDetail",
+        "SlotDetail.isOwnedBy",
+        "SlotDetail.hasParkingRecord",
+        "BeaconPosition",
+        "StateCache",
+        "SessionInfoCache"
+      ],
+      "responsibilities": [
+        "회원 상태와 게스트 공개 상태 분리",
+        "generation을 이용한 오래된 응답 차단",
+        "서버 응답 기반 상태 저장 및 실패 롤백",
+        "?? ?? ?? ???? ?? revision ??",
+        "?? stateVersion ??? ??? CAS ??"
+      ],
+      "tests": [
+        "test/app_state_test.dart",
+        "test/app_state_provider_guest_test.dart",
+        "test/state_cache_test.dart",
+        "test/session_lifecycle_test.dart",
+        "test/parking_member_instance_test.dart",
+        "test/parking_state_consistency_test.dart",
+        "test/map_editor_version_test.dart"
+      ]
+    },
+    {
+      "id": "connectivity",
+      "name": "연결 상태",
+      "kind": "module",
+      "files": [
+        "lib/providers/connectivity_provider.dart"
+      ],
+      "symbols": [
+        "ConnectivityProvider"
+      ],
+      "responsibilities": [
+        "API 연결 결과를 화면에 제공"
+      ]
+    },
+    {
+      "id": "member-ui",
+      "name": "회원 화면과 공통 주차 UI",
+      "kind": "ui",
+      "files": [
+        "lib/screens/public/shell_screen.dart",
+        "lib/screens/public/home_screen.dart",
+        "lib/screens/public/parking_list_screen.dart",
+        "lib/screens/public/slot_filter.dart",
+        "lib/screens/public/map_view_screen.dart",
+        "lib/screens/public/chat_screen.dart",
+        "lib/screens/public/mypage_screen.dart",
+        "lib/screens/public/highlight_screen.dart",
+        "lib/screens/public/guide_screen.dart",
+        "lib/widgets/slot_dialog.dart",
+        "lib/widgets/slot_tile.dart",
+        "lib/core/privacy.dart",
+        "lib/theme.dart",
+        "assets/images/B1-simplified.png",
+        "assets/images/B2-simplified.png"
+      ],
+      "symbols": [
+        "ShellScreen",
+        "HomeScreen",
+        "ParkingListScreen",
+        "showSlotDialog"
+      ],
+      "responsibilities": [
+        "회원 홈·목록·지도·대화·프로필 화면",
+        "딥링크 슬롯 등록 전 최신 서버 상태 확인",
+        "공용 주차 위젯과 테마"
+      ],
+      "tests": [
+        "test/slot_filter_test.dart",
+        "test/slot_dialog_permissions_test.dart",
+        "test/map_view_zoom_test.dart",
+        "test/duration_presets_test.dart",
+        "test/home_deep_link_test.dart",
+        "test/map_editor_version_test.dart"
+      ]
+    },
+    {
+      "id": "guest-ui",
+      "name": "게스트 공개 화면",
+      "kind": "ui",
+      "files": [
+        "lib/screens/public/guest_shell_screen.dart"
+      ],
+      "symbols": [
+        "GuestShellScreen"
+      ],
+      "responsibilities": [
+        "공개 현황·목록·지도 조회",
+        "회원 가입/로그인 유도"
+      ],
+      "tests": [
+        "test/guest_shell_screen_test.dart",
+        "test/app_state_provider_guest_test.dart"
+      ]
+    },
+    {
+      "id": "admin-ui",
+      "name": "관리자 콘솔",
+      "kind": "ui",
+      "files": [
+        "lib/screens/admin/admin_dashboard.dart",
+        "lib/screens/admin/console_members.dart",
+        "lib/screens/admin/console_vehicle_verify.dart",
+        "lib/screens/admin/console_operations.dart",
+        "lib/screens/admin/console_parking.dart",
+        "lib/screens/admin/console_qr.dart",
+        "lib/screens/admin/console_parking_history.dart",
+        "lib/screens/admin/console_logs.dart",
+        "lib/screens/admin/console_member_usage.dart",
+        "lib/screens/admin/map_editor_screen.dart",
+        "lib/screens/admin/member_management_screen.dart",
+        "lib/models/user.dart",
+        "assets/images/B1-simplified.png",
+        "assets/images/B2-simplified.png"
+      ],
+      "symbols": [
+        "AdminDashboard",
+        "MapEditorScreen",
+        "ConsoleQr",
+        "MemberManagementScreen",
+        "AppUser.hasIncompleteProfile"
+      ],
+      "responsibilities": [
+        "회원·차량 승인",
+        "주차·운영·이력 관리",
+        "QR payload 및 지도 좌표 관리",
+        "?? ?? ?? ???/?? ??? ????? ????? ?? ??"
+      ],
+      "tests": [
+        "test/admin_member_management_test.dart",
+        "test/admin_vehicle_policy_ui_test.dart",
+        "test/admin_vehicle_review_test.dart",
+        "test/map_view_zoom_test.dart",
+        "test/map_editor_version_test.dart"
+      ]
+    },
+    {
+      "id": "beacon",
+      "name": "BLE 비콘 스캔과 위치 관리",
+      "kind": "module",
+      "files": [
+        "lib/core/bluetooth_permissions.dart",
+        "lib/screens/admin/console_beacon_scan.dart",
+        "lib/screens/admin/console_beacon_list.dart",
+        "lib/screens/admin/beacon_position_editor.dart"
+      ],
+      "symbols": [
+        "bluetoothPermissionsFor",
+        "bluetoothPermissionsGranted",
+        "queryAndroidSdkInt",
+        "ConsoleBeaconScan"
+      ],
+      "responsibilities": [
+        "Android API 수준 및 iOS 별 BLE 권한 선택",
+        "BLE 스캔과 비콘 관측",
+        "비콘 실내 좌표 관리"
+      ],
+      "tests": [
+        "test/bluetooth_permissions_test.dart",
+        "test/console_beacon_scan_helpers_test.dart"
+      ],
+      "notes": "단위 테스트는 권한 정책/helper를 확인한다. 실제 권한 대화상자와 스캔은 OS 기기에서 확인해야 한다."
+    },
+    {
+      "id": "links",
+      "name": "QR payload와 딥링크",
+      "kind": "module",
+      "files": [
+        "lib/core/deep_link.dart",
+        "lib/core/qr_payload.dart",
+        "lib/core/duration_presets.dart",
+        "lib/screens/public/home_screen.dart",
+        "lib/screens/public/shell_screen.dart",
+        "lib/core/foreground_nfc.dart",
+        "lib/core/app_route_observer.dart"
+      ],
+      "symbols": [
+        "DeepLink",
+        "slotQrPayload",
+        "defaultDurationMinutesFor",
+        "ForegroundNfc",
+        "appRouteObserver",
+        "DeepLink.beginSlotHandling",
+        "DeepLink.finishSlotHandling"
+      ],
+      "responsibilities": [
+        "초기 route와 실행 중 route 링크 수신",
+        "슬롯 ID 검증 및 로그인 이후 보관",
+        "홈의 자동 주차 처리"
+      ],
+      "tests": [
+        "test/deep_link_test.dart",
+        "test/home_deep_link_test.dart",
+        "test/duration_presets_test.dart",
+        "test/foreground_nfc_test.dart",
+        "test/home_nfc_visibility_test.dart"
+      ],
+      "notes": "iOS Universal Links 배포에는 Associated Domains와 서버의 apple-app-site-association 설정이 별도로 필요하다."
+    },
+    {
+      "id": "services",
+      "name": "기능별 API 서비스",
+      "kind": "service",
+      "files": [
+        "lib/services/services.dart",
+        "lib/services/auth_api.dart",
+        "lib/services/state_api.dart",
+        "lib/services/profile_api.dart",
+        "lib/services/users_api.dart",
+        "lib/services/chat_api.dart",
+        "lib/services/logs_api.dart",
+        "lib/services/my_history_api.dart",
+        "lib/services/public_api.dart",
+        "lib/services/session_info_api.dart",
+        "lib/services/bootstrap_admin_api.dart",
+        "lib/services/member_notices_api.dart",
+        "lib/models/member_notice.dart"
+      ],
+      "symbols": [
+        "ApiServices",
+        "AuthApi",
+        "StateApi",
+        "ProfileApi",
+        "UsersApi",
+        "PublicDashboardApi",
+        "MemberNoticesApi",
+        "MemberNotice",
+        "UsersApi.listMembers",
+        "UsersApi.deleteMembers",
+        "UsersApi.requestProfiles"
+      ],
+      "responsibilities": [
+        "기능별 API 호출",
+        "응답 모델 변환",
+        "공용 ApiClient 사용"
+      ]
+    },
+    {
+      "id": "http",
+      "name": "공용 Dio HTTP 클라이언트",
+      "kind": "module",
+      "files": [
+        "lib/core/api_client.dart",
+        "lib/core/etag_cache.dart",
+        "lib/core/errors.dart",
+        "lib/core/json_utils.dart"
+      ],
+      "symbols": [
+        "ApiClient",
+        "EtagCache",
+        "ApiException",
+        "NetworkException"
+      ],
+      "responsibilities": [
+        "쿠키 세션과 session generation 확인",
+        "특정 GET ETag/304 복원",
+        "GET 네트워크 재시도 및 오류 변환"
+      ],
+      "tests": [
+        "test/etag_cache_test.dart",
+        "test/errors_test.dart",
+        "test/secure_session_storage_test.dart",
+        "test/session_lifecycle_test.dart"
+      ]
+    },
+    {
+      "id": "storage",
+      "name": "세션과 주차 상태 저장소",
+      "kind": "module",
+      "files": [
+        "lib/core/session_store.dart",
+        "lib/core/session_info_cache.dart",
+        "lib/core/state_cache.dart",
+        "lib/core/etag_cache.dart"
+      ],
+      "symbols": [
+        "SecureCookieJar",
+        "SessionInfoCache",
+        "StateCache",
+        "EtagCache"
+      ],
+      "responsibilities": [
+        "비동기 쿠키 저장/삭제 직렬화",
+        "세션 정보 보안 저장",
+        "회원 상태 캐시 및 메모리 ETag"
+      ]
+    },
+    {
+      "id": "backend",
+      "name": "외부 APT 서버 API",
+      "kind": "external-system",
+      "files": [],
+      "symbols": [
+        "/api/auth",
+        "/api/state",
+        "/api/public-dashboard",
+        "/api/profile",
+        "/api/users",
+        "/api/chat",
+        "/api/logs",
+        "/api/my-history",
+        "/api/departure-requests",
+        "/api/push-tokens"
+      ],
+      "responsibilities": [
+        "세션·권한 및 주차/회원 데이터 API"
+      ],
+      "notes": "실제 서버 소스 D:/vsCodeProg/APT-Prj 확인. 통합 구조는 app-server-integration.mmd 참조. 운영 Neon 마이그레이션과 Vercel 배포 완료. Android 빌드17 Play 검토 전송 완료, 실제 기기 알림 전달 미검증."
+    },
+    {
+      "id": "platform",
+      "name": "Android/iOS 플랫폼 통합",
+      "kind": "project",
+      "files": [
+        "android/app/build.gradle.kts",
+        "android/app/src/main/AndroidManifest.xml",
+        "android/app/src/main/kotlin/com/bluetilelab/apt_ev/MainActivity.kt",
+        "ios/Runner/Info.plist",
+        "ios/Runner/AppDelegate.swift",
+        "ios/Runner/SceneDelegate.swift",
+        "ios/Flutter/Debug.xcconfig",
+        "ios/Flutter/Release.xcconfig",
+        "ios/Podfile",
+        "android/app/src/main/kotlin/com/bluetilelab/apt_ev/ForegroundNfcReader.kt",
+        "android/app/src/main/kotlin/com/bluetilelab/apt_ev/IndoorBootReceiver.kt",
+        "android/app/src/main/kotlin/com/bluetilelab/apt_ev/IndoorEntryPolicy.kt",
+        "android/app/src/main/kotlin/com/bluetilelab/apt_ev/IndoorGeofenceReceiver.kt",
+        "android/app/src/main/kotlin/com/bluetilelab/apt_ev/IndoorLocationMonitor.kt",
+        "android/app/src/main/kotlin/com/bluetilelab/apt_ev/IndoorLocationService.kt",
+        "ios/Runner/IndoorLocationMonitor.swift"
+      ],
+      "symbols": [
+        "MainActivity",
+        "apt_ev/bluetooth_permissions",
+        "SceneDelegate",
+        "ForegroundNfcReader",
+        "apt_ev/foreground_nfc"
+      ],
+      "responsibilities": [
+        "Android BLE 권한 및 SDK 수준 MethodChannel",
+        "iOS Bluetooth 설명과 CocoaPods 빌드 설정",
+        "네이티브 링크 전달",
+        "Android ??? NFC Reader Mode??? ?? ? ?? ??"
+      ]
+    },
+    {
+      "id": "build",
+      "name": "Flutter 패키지와 CI 빌드",
+      "kind": "module",
+      "files": [
+        "pubspec.yaml",
+        "pubspec.lock",
+        "analysis_options.yaml",
+        ".github/workflows/flutter-ci.yml",
+        "build-env.bat",
+        "build-env.sh",
+        "android/Gemfile",
+        "android/fastlane/Fastfile",
+        "android/deploy.bat"
+      ],
+      "symbols": [
+        "apt_ev_charging",
+        "Flutter 3.41.6"
+      ],
+      "androidTargetSdk": 36,
+      "applicationVersion": "1.1.5+22",
+      "responsibilities": [
+        "Flutter 의존성 및 환경 주입",
+        "정적 분석·테스트·Android/iOS CI 빌드",
+        "별도 배포 도구 설정"
+      ],
+      "notes": "배포 도구는 게시/버전 변경 작업을 할 수 있어 일반 검증으로 실행하지 않는다."
+    },
+    {
+      "id": "local-test",
+      "name": "Local member debug fixture",
+      "kind": "module",
+      "files": [
+        "lib/main_local_test.dart",
+        "lib/local_test/local_api_adapter.dart",
+        "lib/local_test/local_member_management.dart",
+        "lib/local_test/local_community.dart"
+      ],
+      "symbols": [
+        "LocalApiAdapter"
+      ],
+      "responsibilities": [
+        "Isolated debug entrypoint; in-memory member API; no network forwarding"
+      ],
+      "tests": [
+        "test/local_api_adapter_test.dart",
+        "test/local_entrypoint_guard_test.dart",
+        "test/member_screen_lifecycle_test.dart",
+        "test/local_member_management_test.dart"
+      ]
+    },
+    {
+      "id": "departure",
+      "name": "출차 요청과 수신 목록",
+      "kind": "module",
+      "files": [
+        "lib/models/departure_request.dart",
+        "lib/services/departure_requests_api.dart",
+        "lib/widgets/departure_request_button.dart",
+        "lib/screens/public/departure_requests_screen.dart"
+      ],
+      "symbols": [
+        "DepartureRequest",
+        "DepartureRequestsApi",
+        "DepartureRequestButton",
+        "DepartureRequestsScreen"
+      ],
+      "tests": [
+        "test/departure_request_test.dart",
+        "test/slot_departure_request_test.dart",
+        "test/departure_inbox_test.dart"
+      ],
+      "responsibilities": [
+        "직접 충전 완료 확인 후 타인 차량에 출차 요청",
+        "서버 권한 확인 후 요청 차량·위치 표시",
+        "재요청 시간 표시와 중복 클릭 방지"
+      ]
+    },
+    {
+      "id": "push",
+      "name": "계정별 휴대폰 알림",
+      "kind": "module",
+      "files": [
+        "lib/services/push_notifications.dart",
+        "lib/services/push_identity.dart",
+        "ios/Runner/Runner.entitlements"
+      ],
+      "symbols": [
+        "PushNotifications",
+        "PushIdentity",
+        "initializeDeparturePush"
+      ],
+      "tests": [
+        "test/push_identity_test.dart"
+      ],
+      "responsibilities": [
+        "알림 권한·FCM 토큰·계정 수명",
+        "전경 알림·종료 후 알림 선택",
+        "알림 선택 후 수신자 권한 재검증"
+      ],
+      "notes": "Android Firebase 설정 완료. iOS APNs 서명·실기기 전달 검증 필요. iOS 최소15."
+    },
+    {
+      "id": "fcm",
+      "name": "Firebase Cloud Messaging",
+      "kind": "external-system",
+      "files": [],
+      "responsibilities": [
+        "개별 휴대폰 푸시 전달"
+      ],
+      "status": "Android 설정 및 서버 인증 완료·실전달 미검증"
+    },
+    {
+      "id": "member-notices",
+      "name": "?? ?? ?? ??",
+      "kind": "ui",
+      "files": [
+        "lib/screens/onboarding/profile_setup_screen.dart",
+        "lib/services/member_notices_api.dart",
+        "lib/models/member_notice.dart"
+      ],
+      "symbols": [
+        "ProfileSetupScreen",
+        "MemberNoticesApi",
+        "MemberNotice"
+      ],
+      "responsibilities": [
+        "??? ?????? ?? ?? ??? ??? ??? ?? ??",
+        "?? ??? ?? ??? ?? ??? ??"
+      ],
+      "tests": [
+        "test/member_notices_test.dart",
+        "test/member_screen_lifecycle_test.dart"
+      ]
+    },
+    {
+      "id": "vehicle-ocr",
+      "name": "Korean vehicle plate OCR and admin test",
+      "kind": "module",
+      "files": [
+        "lib/core/plate_recognition.dart",
+        "lib/widgets/vehicle_ocr_input.dart",
+        "lib/screens/admin/admin_ocr_test_screen.dart",
+        "lib/screens/onboarding/profile_setup_screen.dart",
+        "lib/screens/onboarding/photo_verification_screen.dart"
+      ],
+      "symbols": [
+        "PlateRecognitionService",
+        "VehicleOcrInput",
+        "AdminOcrTestScreen"
+      ],
+      "tests": [
+        "test/plate_recognition_test.dart",
+        "test/resident_onboarding_test.dart",
+        "test/admin_vehicle_review_test.dart",
+        "test/vehicle_verification_policy_test.dart"
+      ],
+      "responsibilities": [
+        "On-device Korean plate comparison; final approval remains server administrator decision"
+      ]
+    },
+    {
+      "id": "mlkit",
+      "name": "ML Kit Korean Text Recognition",
+      "kind": "external-system",
+      "files": [
+        "pubspec.yaml",
+        "android/app/build.gradle.kts",
+        "ios/Podfile"
+      ],
+      "notes": "google_mlkit_text_recognition 0.15.1; iOS minimum 15.5; device validation required"
+    },
+    {
+      "id": "community",
+      "name": "Apartment board and charger fault reports",
+      "kind": "module",
+      "files": [
+        "lib/models/community.dart",
+        "lib/services/community_api.dart",
+        "lib/screens/public/board_screen.dart",
+        "lib/screens/public/charger_reports_screen.dart",
+        "lib/local_test/local_community.dart"
+      ],
+      "symbols": [
+        "CommunityApi",
+        "BoardScreen",
+        "ChargerReportsScreen",
+        "ChargerReportEditor",
+        "BoardPost",
+        "ChargerReport"
+      ],
+      "tests": [
+        "test/community_api_test.dart",
+        "test/community_screen_test.dart",
+        "test/local_community_test.dart",
+        "test/charger_report_locations_test.dart"
+      ],
+      "responsibilities": [
+        "Approved-member board CRUD and photo reports; server enforces ownership and administration"
+      ]
+    },
+    {
+      "id": "parking-voice",
+      "name": "주차 건별 선택 수신과 앱 전경 음성통화",
+      "kind": "module",
+      "files": [
+        "lib/services/parking_voice_api.dart",
+        "lib/services/parking_voice_controller.dart",
+        "lib/services/parking_voice_peer.dart",
+        "lib/screens/public/parking_voice_screen.dart"
+      ],
+      "symbols": [
+        "ParkingVoiceApi",
+        "ParkingVoiceController",
+        "WebRtcVoicePeer",
+        "ParkingVoicePanel"
+      ],
+      "responsibilities": [
+        "현재 주차 ID와 차주 수신 동의로 서버가 상대 결정",
+        "공용 쿠키 세션의 REST 신호 교환과 단기 TURN 자격 증명",
+        "수락 후 audio-only relay 연결",
+        "백그라운드·로그아웃·짧은 lease 만료 시 마이크와 peer 해제"
+      ],
+      "tests": [
+        "test/parking_voice_api_test.dart",
+        "test/parking_voice_controller_test.dart",
+        "test/parking_voice_screen_test.dart",
+        "test/parking_voice_dialog_test.dart",
+        "test/parking_voice_model_test.dart",
+        "test/parking_voice_provider_test.dart"
+      ],
+      "notes": "flutter_webrtc 1.6.2+hotfix.4. TURN 미설정 운영에서는 비활성. 실기기 음성은 별도 검증."
+    },
+    {
+      "id": "turn",
+      "name": "설정 후 사용하는 TURN 음성 중계",
+      "kind": "external",
+      "files": [],
+      "symbols": [],
+      "responsibilities": [
+        "서버 발급 단기 자격 증명으로 relay-only WebRTC 중계"
+      ],
+      "notes": "현재 운영 설정 없음; 서비스 계정이나 자격 증명을 자동 생성하지 않는다."
+    },
+    {
+      "id": "vehicle-policy",
+      "name": "Global vehicle photo/OCR requirement and approval exemption",
+      "kind": "module",
+      "files": [
+        "lib/models/app_state.dart",
+        "lib/models/session.dart",
+        "lib/models/user.dart",
+        "lib/screens/onboarding/profile_setup_screen.dart",
+        "lib/screens/admin/console_operations.dart",
+        "lib/screens/admin/console_members.dart",
+        "lib/screens/admin/console_vehicle_verify.dart",
+        "lib/local_test/local_api_adapter.dart"
+      ],
+      "symbols": [
+        "AppState.vehicleVerificationRequired",
+        "SessionInfo.vehicleVerificationRequired",
+        "AppUser.vehicleVerificationExempt",
+        "AuthBootstrap.fromJson",
+        "ProfileSetupScreen",
+        "ConsoleOperations",
+        "ConsoleMembers"
+      ],
+      "responsibilities": [
+        "Default-required server policy; OFF skips photo/OCR while retaining consent and administrator approval",
+        "Exemption is distinct from actual vehicle verification; new vehicle requires reapproval",
+        "Policy survives cache and whole-state payload/copy operations"
+      ],
+      "tests": [
+        "test/vehicle_verification_policy_test.dart",
+        "test/admin_vehicle_policy_ui_test.dart",
+        "test/admin_vehicle_review_test.dart",
+        "test/local_api_adapter_test.dart"
+      ]
+    },
+    {
+      "id": "indoor-positioning",
+      "name": "Shared underground positioning",
+      "kind": "module",
+      "files": [
+        "lib/models/indoor_positioning.dart",
+        "lib/models/published_indoor_dataset.dart",
+        "lib/models/home_area.dart",
+        "lib/providers/indoor_position_provider.dart",
+        "lib/providers/indoor_dataset_provider.dart",
+        "lib/services/beacon_observer.dart",
+        "lib/services/fingerprint_positioner.dart",
+        "lib/services/beacon_locator.dart",
+        "lib/services/indoor_survey_store.dart",
+        "lib/services/indoor_positioning_api.dart",
+        "lib/services/indoor_access_controller.dart",
+        "lib/services/indoor_entry_notifications.dart",
+        "lib/services/home_area_store.dart",
+        "lib/services/indoor_entry_policy.dart",
+        "lib/core/indoor_location_bridge.dart",
+        "lib/widgets/indoor_floor_canvas.dart",
+        "lib/screens/admin/indoor_survey_screen.dart",
+        "lib/screens/admin/indoor_survey_history_screen.dart",
+        "lib/screens/public/indoor_position_screen.dart",
+        "lib/screens/public/home_area_settings_screen.dart",
+        "lib/widgets/home_area_map.dart"
+      ],
+      "symbols": [
+        "IndoorAccessController",
+        "IndoorDatasetProvider",
+        "IndoorPositionProvider",
+        "IndoorSurveyStore",
+        "BeaconObserver",
+        "FingerprintPositioner",
+        "BeaconLocator",
+        "IndoorEntryPolicy",
+        "/api/indoor-positioning",
+        "apt_ev/indoor_location",
+        "IndoorSurveyStore.loadFloor",
+        "HomeAreaMap",
+        "IndoorLocationBridge.openSettings"
+      ],
+      "responsibilities": [
+        "Admin-only survey registration and explicit versioned server publication",
+        "Approved members download server data on activation and use isolated local SQLite cache offline",
+        "Home geofence plus observed location degradation routes native notifications into indoor map",
+        "B1/B2 persisted floor separation and independent history filtering",
+        "Online OSM street map for selecting private home center and metric radius",
+        "Explicit permission dialogs, Android settings routing and grant recheck on return"
+      ],
+      "tests": [
+        "test/beacon_observer_lifecycle_test.dart",
+        "test/home_area_settings_test.dart",
+        "test/home_area_store_test.dart",
+        "test/indoor_access_controller_test.dart",
+        "test/indoor_dataset_provider_test.dart",
+        "test/indoor_entry_notification_test.dart",
+        "test/indoor_entry_policy_test.dart",
+        "test/indoor_floor_canvas_test.dart",
+        "test/indoor_location_bridge_test.dart",
+        "test/indoor_position_provider_test.dart",
+        "test/indoor_positioning_api_test.dart",
+        "test/indoor_positioning_test.dart",
+        "test/indoor_survey_history_test.dart",
+        "test/indoor_survey_screen_test.dart",
+        "test/indoor_survey_store_test.dart"
+      ],
+      "notes": "Home street map now uses flutter_map/OpenStreetMap without a Maps key. Indoor metric calibration and field localization validation remain outstanding. Server publication status is recorded separately in release verification."
+    },
+    {
+      "id": "osm",
+      "name": "OpenStreetMap online tiles",
+      "kind": "external-system",
+      "files": [
+        "lib/widgets/home_area_map.dart",
+        "pubspec.yaml"
+      ],
+      "symbols": [
+        "HomeAreaMap"
+      ],
+      "notes": "Viewport-only HTTPS tiles, identifiable User-Agent, visible attribution and default HTTP-aware cache. Tile area and IP may be disclosed to provider; no bulk/offline prefetch."
+    }
+  ],
+  "relationships": [
+    {
+      "from": "app",
+      "to": "config",
+      "kind": "initializes",
+      "label": "환경과 저장소 설정",
+      "evidence": [
+        "lib/main.dart"
+      ]
+    },
+    {
+      "from": "app",
+      "to": "auth",
+      "kind": "creates",
+      "label": "Provider와 auth-keyed 루트",
+      "evidence": [
+        "lib/main.dart"
+      ]
+    },
+    {
+      "from": "app",
+      "to": "parking",
+      "kind": "creates",
+      "label": "주차 Provider",
+      "evidence": [
+        "lib/main.dart"
+      ]
+    },
+    {
+      "from": "app",
+      "to": "connectivity",
+      "kind": "creates",
+      "label": "연결 Provider",
+      "evidence": [
+        "lib/main.dart"
+      ]
+    },
+    {
+      "from": "app",
+      "to": "services",
+      "kind": "creates",
+      "label": "API 서비스 조립",
+      "evidence": [
+        "lib/main.dart"
+      ]
+    },
+    {
+      "from": "app",
+      "to": "links",
+      "kind": "calls",
+      "label": "링크 observer 시작",
+      "evidence": [
+        "lib/main.dart",
+        "lib/core/deep_link.dart"
+      ]
+    },
+    {
+      "from": "app",
+      "to": "member-ui",
+      "kind": "routes",
+      "label": "인증 상태별 회원/관리 화면",
+      "evidence": [
+        "lib/main.dart"
+      ]
+    },
+    {
+      "from": "app",
+      "to": "guest-ui",
+      "kind": "routes",
+      "label": "게스트 진입",
+      "evidence": [
+        "lib/main.dart"
+      ]
+    },
+    {
+      "from": "auth",
+      "to": "services",
+      "kind": "calls",
+      "label": "로그인과 서버 세션 조회",
+      "evidence": [
+        "lib/providers/auth_provider.dart"
+      ]
+    },
+    {
+      "from": "auth",
+      "to": "storage",
+      "kind": "uses",
+      "label": "세션 복원 및 정리",
+      "evidence": [
+        "lib/providers/auth_provider.dart",
+        "lib/core/session_store.dart"
+      ]
+    },
+    {
+      "from": "auth",
+      "to": "app",
+      "kind": "updates",
+      "label": "계정 수명에 따라 루트 재생성",
+      "evidence": [
+        "lib/main.dart"
+      ]
+    },
+    {
+      "from": "parking",
+      "to": "services",
+      "kind": "calls",
+      "label": "회원/공개 조회와 저장",
+      "evidence": [
+        "lib/providers/app_state_provider.dart"
+      ]
+    },
+    {
+      "from": "parking",
+      "to": "storage",
+      "kind": "uses",
+      "label": "회원 상태 캐시",
+      "evidence": [
+        "lib/providers/app_state_provider.dart",
+        "lib/core/state_cache.dart"
+      ]
+    },
+    {
+      "from": "parking",
+      "to": "connectivity",
+      "kind": "updates",
+      "label": "요청 결과",
+      "evidence": [
+        "lib/providers/app_state_provider.dart"
+      ]
+    },
+    {
+      "from": "member-ui",
+      "to": "auth",
+      "kind": "uses",
+      "label": "세션과 로그아웃",
+      "evidence": [
+        "lib/screens/public/shell_screen.dart"
+      ]
+    },
+    {
+      "from": "member-ui",
+      "to": "parking",
+      "kind": "uses",
+      "label": "주차 조회와 변경",
+      "evidence": [
+        "lib/screens/public/home_screen.dart"
+      ]
+    },
+    {
+      "from": "member-ui",
+      "to": "connectivity",
+      "kind": "uses",
+      "label": "연결 상태 안내",
+      "evidence": [
+        "lib/screens/public/shell_screen.dart"
+      ]
+    },
+    {
+      "from": "member-ui",
+      "to": "services",
+      "kind": "calls",
+      "label": "기능 API",
+      "evidence": [
+        "lib/screens/public/chat_screen.dart"
+      ]
+    },
+    {
+      "from": "member-ui",
+      "to": "links",
+      "kind": "consumes",
+      "label": "슬롯 링크 처리",
+      "evidence": [
+        "lib/screens/public/home_screen.dart",
+        "lib/core/deep_link.dart"
+      ]
+    },
+    {
+      "from": "member-ui",
+      "to": "admin-ui",
+      "kind": "navigates",
+      "label": "관리자 메뉴",
+      "evidence": [
+        "lib/screens/public/shell_screen.dart"
+      ]
+    },
+    {
+      "from": "guest-ui",
+      "to": "parking",
+      "kind": "calls",
+      "label": "공개 현황 조회",
+      "evidence": [
+        "lib/screens/public/guest_shell_screen.dart"
+      ]
+    },
+    {
+      "from": "guest-ui",
+      "to": "auth",
+      "kind": "calls",
+      "label": "로그인 전환",
+      "evidence": [
+        "lib/screens/public/guest_shell_screen.dart"
+      ]
+    },
+    {
+      "from": "guest-ui",
+      "to": "member-ui",
+      "kind": "reuses",
+      "label": "공통 목록과 지도 화면",
+      "evidence": [
+        "lib/screens/public/guest_shell_screen.dart"
+      ]
+    },
+    {
+      "from": "admin-ui",
+      "to": "services",
+      "kind": "calls",
+      "label": "관리 API",
+      "evidence": [
+        "lib/screens/admin/console_members.dart"
+      ]
+    },
+    {
+      "from": "admin-ui",
+      "to": "parking",
+      "kind": "uses",
+      "label": "지도와 주차 상태",
+      "evidence": [
+        "lib/screens/admin/map_editor_screen.dart"
+      ]
+    },
+    {
+      "from": "admin-ui",
+      "to": "links",
+      "kind": "calls",
+      "label": "QR payload 생성",
+      "evidence": [
+        "lib/screens/admin/console_qr.dart"
+      ]
+    },
+    {
+      "from": "admin-ui",
+      "to": "beacon",
+      "kind": "navigates",
+      "label": "비콘 관리 화면",
+      "evidence": [
+        "lib/screens/admin/admin_dashboard.dart"
+      ]
+    },
+    {
+      "from": "beacon",
+      "to": "parking",
+      "kind": "uses",
+      "label": "비콘 위치 저장",
+      "evidence": [
+        "lib/screens/admin/console_beacon_scan.dart"
+      ]
+    },
+    {
+      "from": "beacon",
+      "to": "platform",
+      "kind": "requires",
+      "label": "BLE 권한과 네이티브 SDK 수준",
+      "evidence": [
+        "lib/core/bluetooth_permissions.dart",
+        "android/app/src/main/kotlin/com/bluetilelab/apt_ev/MainActivity.kt"
+      ]
+    },
+    {
+      "from": "services",
+      "to": "http",
+      "kind": "uses",
+      "label": "공용 요청과 오류 처리",
+      "evidence": [
+        "lib/services/state_api.dart"
+      ]
+    },
+    {
+      "from": "http",
+      "to": "config",
+      "kind": "uses",
+      "label": "서버 URL과 설정",
+      "evidence": [
+        "lib/core/api_client.dart"
+      ]
+    },
+    {
+      "from": "http",
+      "to": "storage",
+      "kind": "uses",
+      "label": "쿠키와 ETag",
+      "evidence": [
+        "lib/core/api_client.dart"
+      ]
+    },
+    {
+      "from": "http",
+      "to": "backend",
+      "kind": "calls",
+      "label": "HTTP API 요청",
+      "evidence": [
+        "lib/core/api_client.dart"
+      ]
+    },
+    {
+      "from": "storage",
+      "to": "config",
+      "kind": "uses",
+      "label": "저장소 핸들",
+      "evidence": [
+        "lib/core/state_cache.dart",
+        "lib/core/session_store.dart"
+      ]
+    },
+    {
+      "from": "platform",
+      "to": "links",
+      "kind": "delivers",
+      "label": "??/? ?? ? ?? NFC ?? ??",
+      "evidence": [
+        "android/app/src/main/AndroidManifest.xml",
+        "ios/Runner/SceneDelegate.swift",
+        "lib/core/deep_link.dart",
+        "lib/core/foreground_nfc.dart",
+        "android/app/src/main/kotlin/com/bluetilelab/apt_ev/ForegroundNfcReader.kt"
+      ]
+    },
+    {
+      "from": "build",
+      "to": "app",
+      "kind": "builds",
+      "label": "분석·테스트·앱 패키징",
+      "evidence": [
+        ".github/workflows/flutter-ci.yml"
+      ]
+    },
+    {
+      "from": "build",
+      "to": "platform",
+      "kind": "builds",
+      "label": "Android와 iOS 빌드",
+      "evidence": [
+        ".github/workflows/flutter-ci.yml"
+      ]
+    },
+    {
+      "from": "local-test",
+      "to": "http",
+      "kind": "replaces",
+      "label": "Debug adapter only",
+      "evidence": [
+        "lib/main_local_test.dart"
+      ]
+    },
+    {
+      "from": "local-test",
+      "to": "app",
+      "kind": "uses",
+      "label": "Reuse AptEvApp",
+      "evidence": [
+        "lib/main_local_test.dart"
+      ]
+    },
+    {
+      "from": "member-ui",
+      "to": "departure",
+      "kind": "uses",
+      "label": "타인 슬롯 출차 요청",
+      "evidence": [
+        "lib/widgets/slot_dialog.dart"
+      ]
+    },
+    {
+      "from": "departure",
+      "to": "services",
+      "kind": "calls",
+      "label": "요청 저장·수신 목록·읽음",
+      "evidence": [
+        "lib/services/departure_requests_api.dart"
+      ]
+    },
+    {
+      "from": "app",
+      "to": "push",
+      "kind": "creates",
+      "label": "알림 Provider 초기화",
+      "evidence": [
+        "lib/main.dart"
+      ]
+    },
+    {
+      "from": "push",
+      "to": "auth",
+      "kind": "observes",
+      "label": "계정 전환·로그아웃",
+      "evidence": [
+        "lib/services/push_notifications.dart"
+      ]
+    },
+    {
+      "from": "push",
+      "to": "services",
+      "kind": "calls",
+      "label": "기기 토큰 등록·요청 권한 조회",
+      "evidence": [
+        "lib/services/push_notifications.dart"
+      ]
+    },
+    {
+      "from": "push",
+      "to": "departure",
+      "kind": "opens",
+      "label": "알림 선택 후 상세",
+      "evidence": [
+        "lib/screens/public/shell_screen.dart"
+      ]
+    },
+    {
+      "from": "push",
+      "to": "platform",
+      "kind": "requires",
+      "label": "알림 권한·APNs 서명",
+      "evidence": [
+        "lib/services/push_notifications.dart"
+      ]
+    },
+    {
+      "from": "backend",
+      "to": "fcm",
+      "kind": "calls",
+      "label": "서버 설정 후 개별 기기로 발송",
+      "evidence": [
+        "lib/services/departure_requests_api.dart"
+      ]
+    },
+    {
+      "from": "fcm",
+      "to": "push",
+      "kind": "delivers",
+      "label": "알림 수신·선택",
+      "evidence": [
+        "lib/services/push_notifications.dart"
+      ]
+    },
+    {
+      "from": "admin-ui",
+      "to": "member-notices",
+      "kind": "writes",
+      "label": "?? ??? ???? ????? ?? ??",
+      "files": [
+        "lib/services/users_api.dart"
+      ]
+    },
+    {
+      "from": "member-notices",
+      "to": "services",
+      "kind": "calls",
+      "label": "??? ?? ?? ??",
+      "files": [
+        "lib/services/member_notices_api.dart"
+      ]
+    },
+    {
+      "from": "auth",
+      "to": "vehicle-ocr",
+      "kind": "uses",
+      "label": "Consent and plate before pending"
+    },
+    {
+      "from": "member-ui",
+      "to": "vehicle-ocr",
+      "kind": "uses",
+      "label": "Vehicle resubmission"
+    },
+    {
+      "from": "admin-ui",
+      "to": "vehicle-ocr",
+      "kind": "uses",
+      "label": "OCR test and versioned approval"
+    },
+    {
+      "from": "vehicle-ocr",
+      "to": "mlkit",
+      "kind": "uses",
+      "label": "Korean text recognition"
+    },
+    {
+      "from": "vehicle-ocr",
+      "to": "services",
+      "kind": "uses",
+      "label": "Plate photo candidates"
+    },
+    {
+      "from": "vehicle-ocr",
+      "to": "platform",
+      "kind": "uses",
+      "label": "Camera and picker"
+    },
+    {
+      "from": "member-ui",
+      "to": "community",
+      "kind": "uses",
+      "label": "Board and own reports"
+    },
+    {
+      "from": "admin-ui",
+      "to": "community",
+      "kind": "uses",
+      "label": "Moderation and report status"
+    },
+    {
+      "from": "community",
+      "to": "services",
+      "kind": "uses",
+      "label": "Shared HTTP contracts"
+    },
+    {
+      "from": "app",
+      "to": "parking-voice",
+      "kind": "creates",
+      "label": "계정 수명 Provider와 Navigator 위 전역 통화 패널",
+      "evidence": [
+        "lib/main.dart"
+      ]
+    },
+    {
+      "from": "parking-voice",
+      "to": "auth",
+      "kind": "reads",
+      "label": "승인·계정 전환·로그아웃 수명",
+      "evidence": [
+        "lib/services/parking_voice_controller.dart"
+      ]
+    },
+    {
+      "from": "parking",
+      "to": "parking-voice",
+      "kind": "uses",
+      "label": "서버 발급 등록 ID와 소유자 수신 설정",
+      "evidence": [
+        "lib/providers/app_state_provider.dart",
+        "lib/models/parking_slot.dart"
+      ]
+    },
+    {
+      "from": "member-ui",
+      "to": "parking-voice",
+      "kind": "uses",
+      "label": "이번 주차 수신 선택·현재 차주 통화",
+      "evidence": [
+        "lib/widgets/slot_dialog.dart"
+      ]
+    },
+    {
+      "from": "parking-voice",
+      "to": "http",
+      "kind": "uses",
+      "label": "공용 Dio 쿠키 세션 신호 API",
+      "evidence": [
+        "lib/services/parking_voice_api.dart"
+      ]
+    },
+    {
+      "from": "parking-voice",
+      "to": "platform",
+      "kind": "uses",
+      "label": "수락 후 마이크 권한과 음성 장치",
+      "evidence": [
+        "lib/services/parking_voice_peer.dart"
+      ]
+    },
+    {
+      "from": "parking-voice",
+      "to": "turn",
+      "kind": "uses",
+      "label": "audio-only relay와 단기 자격 증명",
+      "evidence": [
+        "lib/services/parking_voice_peer.dart"
+      ]
+    },
+    {
+      "from": "parking",
+      "to": "auth",
+      "kind": "updates",
+      "label": "401 ? ?? ?? ?? ??",
+      "evidence": [
+        "lib/providers/app_state_provider.dart",
+        "lib/providers/auth_provider.dart"
+      ]
+    },
+    {
+      "from": "admin-ui",
+      "to": "vehicle-policy",
+      "kind": "uses",
+      "label": "Admin-only global photo requirement and member approval controls",
+      "evidence": [
+        "lib/screens/admin/console_operations.dart",
+        "lib/screens/admin/console_members.dart"
+      ]
+    },
+    {
+      "from": "auth",
+      "to": "vehicle-policy",
+      "kind": "uses",
+      "label": "Server bootstrap policy controls profile submission requirements",
+      "evidence": [
+        "lib/models/session.dart",
+        "lib/screens/onboarding/profile_setup_screen.dart"
+      ]
+    },
+    {
+      "from": "vehicle-policy",
+      "to": "services",
+      "kind": "uses",
+      "label": "Versioned state save and server-authoritative profile/member approval",
+      "evidence": [
+        "lib/services/state_api.dart",
+        "lib/services/profile_api.dart",
+        "lib/services/users_api.dart"
+      ]
+    },
+    {
+      "from": "app",
+      "to": "indoor-positioning",
+      "kind": "initializes",
+      "label": "auth-scoped publication sync and lifecycle",
+      "evidence": [
+        "lib/services/indoor_access_controller.dart",
+        "lib/services/indoor_positioning_api.dart"
+      ]
+    },
+    {
+      "from": "admin-ui",
+      "to": "indoor-positioning",
+      "kind": "uses",
+      "label": "survey and explicit publication",
+      "evidence": [
+        "lib/services/indoor_access_controller.dart",
+        "lib/services/indoor_positioning_api.dart"
+      ]
+    },
+    {
+      "from": "member-ui",
+      "to": "indoor-positioning",
+      "kind": "uses",
+      "label": "shared indoor map and personal home radius",
+      "evidence": [
+        "lib/services/indoor_access_controller.dart",
+        "lib/services/indoor_positioning_api.dart"
+      ]
+    },
+    {
+      "from": "indoor-positioning",
+      "to": "http",
+      "kind": "calls",
+      "label": "session cookies, ETag and API error conversion",
+      "evidence": [
+        "lib/services/indoor_access_controller.dart",
+        "lib/services/indoor_positioning_api.dart"
+      ]
+    },
+    {
+      "from": "indoor-positioning",
+      "to": "storage",
+      "kind": "uses",
+      "label": "raw surveys and versioned snapshots in SQLite; private home in secure storage",
+      "evidence": [
+        "lib/services/indoor_access_controller.dart",
+        "lib/services/indoor_positioning_api.dart"
+      ]
+    },
+    {
+      "from": "indoor-positioning",
+      "to": "platform",
+      "kind": "uses",
+      "label": "native bounded location observation and local notifications",
+      "evidence": [
+        "lib/services/indoor_access_controller.dart",
+        "lib/services/indoor_positioning_api.dart"
+      ]
+    },
+    {
+      "from": "indoor-positioning",
+      "to": "osm",
+      "kind": "uses",
+      "label": "street map tile requests and attribution",
+      "evidence": [
+        "lib/widgets/home_area_map.dart"
+      ]
+    },
+    {
+      "from": "indoor-positioning",
+      "to": "platform",
+      "kind": "uses",
+      "label": "consented permission dialogs, OS settings and resume grant checks",
+      "evidence": [
+        "lib/screens/public/home_area_settings_screen.dart",
+        "lib/core/indoor_location_bridge.dart",
+        "android/app/src/main/kotlin/com/bluetilelab/apt_ev/IndoorLocationMonitor.kt"
+      ]
+    }
+  ],
+  "flows": [
+    {
+      "id": "google-login",
+      "kind": "control",
+      "steps": [
+        "app",
+        "auth",
+        "services",
+        "http",
+        "backend"
+      ]
+    },
+    {
+      "id": "member-parking",
+      "kind": "data",
+      "steps": [
+        "member-ui",
+        "parking",
+        "services",
+        "http",
+        "backend"
+      ]
+    },
+    {
+      "id": "guest-read",
+      "kind": "data",
+      "steps": [
+        "guest-ui",
+        "parking",
+        "services",
+        "http",
+        "backend"
+      ]
+    },
+    {
+      "id": "slot-link-registration",
+      "kind": "control",
+      "steps": [
+        "platform",
+        "links",
+        "member-ui",
+        "parking",
+        "services",
+        "http",
+        "backend"
+      ]
+    },
+    {
+      "id": "beacon-position-save",
+      "kind": "data",
+      "steps": [
+        "admin-ui",
+        "beacon",
+        "parking",
+        "services",
+        "http",
+        "backend"
+      ]
+    },
+    {
+      "id": "logout-session-clear",
+      "kind": "control",
+      "steps": [
+        "member-ui",
+        "auth",
+        "app",
+        "storage",
+        "http"
+      ]
+    },
+    {
+      "id": "departure-request",
+      "kind": "data",
+      "steps": [
+        "member-ui",
+        "departure",
+        "services",
+        "http",
+        "backend"
+      ]
+    },
+    {
+      "id": "departure-alert",
+      "kind": "control",
+      "steps": [
+        "backend",
+        "fcm",
+        "push",
+        "departure",
+        "services",
+        "http",
+        "backend"
+      ]
+    },
+    {
+      "id": "member-cleanup",
+      "kind": "data",
+      "steps": [
+        "admin-ui",
+        "services",
+        "http",
+        "backend"
+      ]
+    },
+    {
+      "id": "profile-request-notices",
+      "kind": "data",
+      "steps": [
+        "admin-ui",
+        "services",
+        "http",
+        "backend",
+        "member-notices"
+      ]
+    },
+    {
+      "id": "resident-approval",
+      "kind": "control",
+      "steps": [
+        "auth",
+        "vehicle-ocr",
+        "services",
+        "http",
+        "backend",
+        "admin-ui"
+      ]
+    },
+    {
+      "id": "community-write",
+      "kind": "data",
+      "steps": [
+        "member-ui",
+        "community",
+        "services",
+        "http",
+        "backend"
+      ]
+    },
+    {
+      "id": "parking-voice-signaling",
+      "kind": "control",
+      "steps": [
+        "member-ui",
+        "parking-voice",
+        "http",
+        "backend"
+      ]
+    },
+    {
+      "id": "parking-voice-media",
+      "kind": "data",
+      "steps": [
+        "parking-voice",
+        "turn"
+      ]
+    },
+    {
+      "id": "foreground-nfc",
+      "kind": "control",
+      "steps": [
+        "platform",
+        "links",
+        "member-ui",
+        "parking",
+        "services",
+        "http",
+        "backend"
+      ]
+    },
+    {
+      "id": "indoor-publication",
+      "kind": "data",
+      "steps": [
+        "admin-ui",
+        "indoor-positioning",
+        "http",
+        "backend"
+      ]
+    },
+    {
+      "id": "indoor-offline-estimate",
+      "kind": "data",
+      "steps": [
+        "member-ui",
+        "indoor-positioning",
+        "storage"
+      ]
+    },
+    {
+      "id": "indoor-entry-notification",
+      "kind": "control",
+      "steps": [
+        "platform",
+        "indoor-positioning",
+        "member-ui"
+      ]
+    },
+    {
+      "id": "home-area-settings",
+      "kind": "control",
+      "steps": [
+        "member-ui",
+        "indoor-positioning",
+        "osm",
+        "platform",
+        "storage"
+      ]
+    }
+  ],
+  "changeNote": "2026-11-23 follow-up: OpenStreetMap home-radius map and explicit permission/settings continuation; preserve indoor survey/publication and B1/B2 storage contracts. See verification record for actual build/device/deployment status."
+}

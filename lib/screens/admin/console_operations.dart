@@ -48,6 +48,7 @@ class _ConsoleOperationsState extends State<ConsoleOperations> {
   }
 
   Future<void> _patchState(Map<String, dynamic> overrides) async {
+    if (_saving) return;
     final messenger = ScaffoldMessenger.of(context);
     final app = context.read<AppStateProvider>();
     setState(() => _saving = true);
@@ -71,10 +72,13 @@ class _ConsoleOperationsState extends State<ConsoleOperations> {
     final slotDetails = <String, dynamic>{};
     s.slotDetails.forEach((id, d) => slotDetails[id] = d.toJson());
     final slots = <String, dynamic>{};
-    s.slots.forEach((k, list) => slots[k] = list.map((e) => e.toJson()).toList());
+    s.slots
+        .forEach((k, list) => slots[k] = list.map((e) => e.toJson()).toList());
     return <String, dynamic>{
+      'stateVersion': s.stateVersion,
       'adEnabled': s.adEnabled,
       'maintenanceMode': s.maintenanceMode,
+      'vehicleVerificationRequired': s.vehicleVerificationRequired,
       'chatRetentionDays': s.chatRetentionDays,
       'popupNotice': <String, dynamic>{
         'enabled': s.popupNotice.enabled,
@@ -86,7 +90,8 @@ class _ConsoleOperationsState extends State<ConsoleOperations> {
       'slotNames': Map<String, String>.from(s.slotNames),
       'slotImages': Map<String, String>.from(s.slotImages),
       'slotDetails': slotDetails,
-      'slotMapPositions': s.slotMapPositions.map((k, v) => MapEntry(k, v.toJson())),
+      'slotMapPositions':
+          s.slotMapPositions.map((k, v) => MapEntry(k, v.toJson())),
       'beaconMappings': Map<String, String>.from(s.beaconMappings),
       'beaconPositions':
           s.beaconPositions.map((k, v) => MapEntry(k, v.toJson())),
@@ -110,7 +115,8 @@ class _ConsoleOperationsState extends State<ConsoleOperations> {
     );
     payload['slots'] = slotsMap;
 
-    final slotDetails = Map<String, dynamic>.from(payload['slotDetails'] as Map);
+    final slotDetails =
+        Map<String, dynamic>.from(payload['slotDetails'] as Map);
     slotDetails.removeWhere((key, _) {
       if (!key.startsWith('$typeId-')) return false;
       final n = int.tryParse(key.split('-').last) ?? 0;
@@ -129,7 +135,9 @@ class _ConsoleOperationsState extends State<ConsoleOperations> {
       appBar: AppBar(
         title: const Text('운영 설정'),
         actions: [
-          IconButton(onPressed: _saving ? null : _load, icon: const Icon(Icons.refresh)),
+          IconButton(
+              onPressed: _saving ? null : _load,
+              icon: const Icon(Icons.refresh)),
         ],
       ),
       body: ListView(
@@ -138,9 +146,8 @@ class _ConsoleOperationsState extends State<ConsoleOperations> {
           Card(
             child: SwitchListTile(
               value: s.maintenanceMode,
-              onChanged: _saving
-                  ? null
-                  : (v) => _patchState({'maintenanceMode': v}),
+              onChanged:
+                  _saving ? null : (v) => _patchState({'maintenanceMode': v}),
               title: const Text('준비중 모드',
                   style: TextStyle(fontWeight: FontWeight.w600)),
               subtitle: const Text('활성화 시 사용자 화면에 안내 오버레이가 표시됩니다.'),
@@ -148,9 +155,22 @@ class _ConsoleOperationsState extends State<ConsoleOperations> {
           ),
           Card(
             child: SwitchListTile(
+              value: s.vehicleVerificationRequired,
+              onChanged: _saving
+                  ? null
+                  : (v) => _patchState({'vehicleVerificationRequired': v}),
+              title: const Text('차량 사진·OCR 인증 필수',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: const Text(
+                  'OFF: 사진·OCR만 생략하며 약관 동의, 차량번호 입력, 관리자 승인은 필요합니다.\nON: 신규·변경 차량에 적용하며 기존 면제 승인 차량은 유지합니다.'),
+            ),
+          ),
+          Card(
+            child: SwitchListTile(
               value: s.adEnabled,
               onChanged: _saving ? null : (v) => _patchState({'adEnabled': v}),
-              title: const Text('광고 노출', style: TextStyle(fontWeight: FontWeight.w600)),
+              title: const Text('광고 노출',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               subtitle: const Text('공개 화면 AdSense 광고 노출 여부.'),
             ),
           ),
@@ -161,7 +181,8 @@ class _ConsoleOperationsState extends State<ConsoleOperations> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('공지사항',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                      style:
+                          TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
                   const SizedBox(height: 8),
                   SwitchListTile(
                     value: s.popupNotice.enabled,
@@ -209,7 +230,8 @@ class _ConsoleOperationsState extends State<ConsoleOperations> {
                                       'enabled': s.popupNotice.enabled,
                                       'content': _noticeCtrl.text,
                                       'autoCloseSeconds':
-                                          int.tryParse(_autoCloseCtrl.text) ?? 0,
+                                          int.tryParse(_autoCloseCtrl.text) ??
+                                              0,
                                     },
                                   }),
                           child: const Text('공지 저장'),
@@ -228,7 +250,8 @@ class _ConsoleOperationsState extends State<ConsoleOperations> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('채팅 보존 기간',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                      style:
+                          TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -248,7 +271,8 @@ class _ConsoleOperationsState extends State<ConsoleOperations> {
                             ? null
                             : () => _patchState({
                                   'chatRetentionDays':
-                                      int.tryParse(_chatRetentionCtrl.text) ?? 30,
+                                      int.tryParse(_chatRetentionCtrl.text) ??
+                                          30,
                                 }),
                         child: const Text('저장'),
                       ),
@@ -265,7 +289,8 @@ class _ConsoleOperationsState extends State<ConsoleOperations> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('충전기 수량',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                      style:
+                          TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
                   const SizedBox(height: 8),
                   for (final t in chargerTypes)
                     Padding(
@@ -277,7 +302,8 @@ class _ConsoleOperationsState extends State<ConsoleOperations> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(t.name,
-                                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600)),
                                 Text(t.description,
                                     style: const TextStyle(
                                         fontSize: 11, color: Colors.black54)),
@@ -286,7 +312,8 @@ class _ConsoleOperationsState extends State<ConsoleOperations> {
                           ),
                           IconButton(
                             icon: const Icon(Icons.remove_circle_outline),
-                            onPressed: _saving ? null : () => _updateCount(t.id, -1),
+                            onPressed:
+                                _saving ? null : () => _updateCount(t.id, -1),
                           ),
                           SizedBox(
                             width: 36,
@@ -299,7 +326,8 @@ class _ConsoleOperationsState extends State<ConsoleOperations> {
                           ),
                           IconButton(
                             icon: const Icon(Icons.add_circle_outline),
-                            onPressed: _saving ? null : () => _updateCount(t.id, 1),
+                            onPressed:
+                                _saving ? null : () => _updateCount(t.id, 1),
                           ),
                         ],
                       ),

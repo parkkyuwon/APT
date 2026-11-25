@@ -23,7 +23,9 @@ class GuideScreen extends StatelessWidget {
                   Text(
                     'Quick Start',
                     style: TextStyle(
-                        fontSize: 12, color: Colors.blue, fontWeight: FontWeight.w600),
+                        fontSize: 12,
+                        color: Colors.blue,
+                        fontWeight: FontWeight.w600),
                   ),
                   SizedBox(height: 4),
                   Text(
@@ -32,7 +34,7 @@ class GuideScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 8),
                   Text(
-                    '구글 로그인 후 닉네임, 차량번호, 전화번호를 입력하고 '
+                    '구글 로그인 후 닉네임을 입력하고 차량번호 한 개와 번호판 사진을 비교하고 '
                     '관리자 승인을 받으면 주차 등록을 시작할 수 있습니다.',
                     style: TextStyle(fontSize: 13),
                   ),
@@ -47,12 +49,13 @@ class GuideScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _step('1. 구글 로그인', '로그인 화면에서 구글 계정으로 가입 또는 로그인을 진행합니다.'),
-          _step('2. 가입 정보 입력', '닉네임, 차량번호, 전화번호를 입력하면 가입 요청이 저장됩니다.'),
-          _step('3. 관리자 승인',
-              '최초 사용자는 관리자 승인이 끝난 뒤 메인 화면과 주차 등록 기능을 사용할 수 있습니다.'),
+          _step('2. 닉네임과 차량번호 확인',
+              '닉네임과 차량번호 한 개를 입력하고 번호판 사진 OCR 비교 후 가입을 요청합니다. 차량번호 변경 시 기존 차량을 대체하고 관리자 재승인을 받아야 합니다.'),
+          _step(
+              '3. 관리자 승인', '최초 사용자는 관리자 승인이 끝난 뒤 메인 화면과 주차 등록 기능을 사용할 수 있습니다.'),
           _step(
             '4. 주차 등록과 출차',
-            '홈 또는 목록 탭에서 원하는 주차칸을 선택한 뒤 차량번호, 연락처, 예상 출차시간을 입력해 등록하고, '
+            '홈 또는 목록 탭에서 원하는 주차칸을 선택한 뒤 차량번호와 예상 출차시간을 입력해 등록하고, '
                 '이후에는 홈 상단의 "내 차량 출차하기" 버튼이나 QR로 빠르게 정리할 수 있습니다.',
           ),
           const SizedBox(height: 20),
@@ -61,11 +64,12 @@ class GuideScreen extends StatelessWidget {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
-          _bullet('필수 입력 항목은 차량번호, 연락처, 충전 소요 시간입니다.'),
+          _bullet('필수 입력 항목은 차량번호와 충전 소요 시간입니다.'),
           _bullet('한 계정은 한 번에 1개의 주차만 등록할 수 있습니다.'),
           _bullet('다른 사용자가 등록한 주차 정보는 수정할 수 없고, 본인 차량만 등록 또는 출차할 수 있습니다.'),
           _bullet('3kW 완속 구역은 상황에 따라 주차 불가로 표시될 수 있습니다.'),
-          _bullet('현장 QR을 스캔하면 해당 자리로 바로 이동하며, 빈 칸이면 주차, 내 차량이면 출차 흐름으로 연결됩니다.'),
+          _bullet(
+              '현장 QR을 스캔하면 해당 자리로 바로 이동하며, 빈 칸이면 주차, 내 차량이면 출차 흐름으로 연결됩니다.'),
         ],
       ),
     );
@@ -81,7 +85,8 @@ class GuideScreen extends StatelessWidget {
           children: [
             Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
-            Text(body, style: const TextStyle(fontSize: 13, color: Colors.black87)),
+            Text(body,
+                style: const TextStyle(fontSize: 13, color: Colors.black87)),
           ],
         ),
       ),

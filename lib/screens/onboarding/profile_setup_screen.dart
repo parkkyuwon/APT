@@ -1,305 +1,202 @@
 import 'dart:async';
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-
-import '../../core/errors.dart';
-import '../../core/image_utils.dart';
+import '../../models/member_notice.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/services.dart';
+import '../../widgets/vehicle_ocr_input.dart';
+import '../../core/plate_recognition.dart';
+import '../../core/errors.dart';
 
-/// [profile.html](D:/vsCodeProg/APT-Prj/profile.html) 동등 화면.
-///
-/// - 최초 로그인 후 닉네임/차량번호/전화번호 입력이 필요할 때 (needsProfileSetup)
-/// - 평시 "내 정보 수정" (isEdit=true) 모드도 동일 화면 사용
-///
-/// POST /api/profile 로 전송. vehicle photo 는 base64 data URL 로 전송.
 class ProfileSetupScreen extends StatefulWidget {
   const ProfileSetupScreen({super.key, this.isEdit = false});
-
   final bool isEdit;
-
   @override
   State<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
 }
 
-class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _nickname = TextEditingController();
-  final _vehicleNumber = TextEditingController();
-  final _phoneNumber = TextEditingController();
-  final _picker = ImagePicker();
-
-  String? _photoDataUrl;
-  String _photoStatus = '';
-  String? _error;
+class _ProfileSetupScreenState extends State<ProfileSetupScreen>
+    with WidgetsBindingObserver {
+  VehicleOcrResult? _result;
+  final _form = GlobalKey<FormState>();
+  late final TextEditingController _nickname;
+  late final String _originalVehicle;
+  late String _number;
   bool _submitting = false;
-  bool _initialLoaded = false;
+  String? _error;
+  List<MemberNotice> _notices = [];
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _prefill());
+    final session = context.read<AuthProvider>().session;
+    _nickname = TextEditingController(text: session?.nickname ?? '');
+    _originalVehicle = normalizePlate(session?.vehicleNumber ?? '');
+    _number = _originalVehicle;
+    WidgetsBinding.instance.addObserver(this);
+    unawaited(_loadNotices());
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _nickname.dispose();
-    _vehicleNumber.dispose();
-    _phoneNumber.dispose();
     super.dispose();
   }
 
-  void _prefill() {
-    final session = context.read<AuthProvider>().session;
-    if (session != null) {
-      _nickname.text = session.nickname;
-      _vehicleNumber.text = session.vehicleNumber;
-      _phoneNumber.text = session.phoneNumber;
-    }
-    setState(() => _initialLoaded = true);
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_loadNotices());
   }
 
-  Future<void> _pickPhoto() async {
+  Future<void> _loadNotices() async {
+    final auth = context.read<AuthProvider>();
+    final email = auth.session?.email;
     try {
-      final picked = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1600,
-        maxHeight: 1600,
-        imageQuality: 85,
-      );
-      if (picked == null) return;
-      setState(() => _photoStatus = '사진을 처리하는 중...');
-      final bytes = await picked.readAsBytes();
-      await _setPhotoBytes(bytes);
-    } catch (e) {
-      setState(() => _photoStatus = '사진 처리 중 오류: $e');
-    }
-  }
-
-  Future<void> _capturePhoto() async {
-    try {
-      final picked = await _picker.pickImage(
-        source: ImageSource.camera,
-        maxWidth: 1600,
-        maxHeight: 1600,
-        imageQuality: 85,
-      );
-      if (picked == null) return;
-      setState(() => _photoStatus = '사진을 처리하는 중...');
-      final bytes = await picked.readAsBytes();
-      await _setPhotoBytes(bytes);
-    } catch (e) {
-      setState(() => _photoStatus = '사진 처리 중 오류: $e');
-    }
-  }
-
-  Future<void> _setPhotoBytes(Uint8List bytes) async {
-    final dataUrl = await encodeVehiclePhotoDataUrl(bytes);
-    final kb = estimateBase64SizeKb(dataUrl);
-    if (kb > 900) {
-      setState(() {
-        _photoStatus = '사진이 너무 큽니다 ($kb KB). 더 작은 사진을 선택해 주세요.';
-        _photoDataUrl = null;
-      });
-      return;
-    }
-    setState(() {
-      _photoDataUrl = dataUrl;
-      _photoStatus = '업로드 준비 완료 ($kb KB) — 저장하기를 눌러야 전송됩니다.';
-    });
-  }
-
-  void _clearPhoto() {
-    setState(() {
-      _photoDataUrl = null;
-      _photoStatus = '';
-    });
+      final notices = await context.read<ApiServices>().memberNotices.list();
+      if (mounted && auth.session?.email == email) {
+        setState(() => _notices = notices);
+      }
+    } catch (_) {/* Notices must not block profile completion. */}
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    final result = _result;
+    if (_submitting || !_canSave || !_form.currentState!.validate()) return;
+    final auth = context.read<AuthProvider>();
+    final email = auth.session?.email;
+    final services = context.read<ApiServices>();
     setState(() {
       _submitting = true;
       _error = null;
     });
-    final services = context.read<ApiServices>();
-    final auth = context.read<AuthProvider>();
     try {
+      final requiresPhoto = auth.session?.vehicleVerificationRequired ?? true;
       await services.profile.updateProfile(
-        nickname: _nickname.text.trim(),
-        vehicleNumber: _vehicleNumber.text.trim(),
-        phoneNumber: _phoneNumber.text.trim(),
-        vehiclePhotoBase64: _photoDataUrl,
-      );
-      // 저장 후 전체 세션/stage 재계산
+          nickname: _nickname.text.trim(),
+          vehicleNumber: normalizePlate(_number),
+          vehiclePhotoBase64: requiresPhoto ? result?.photoDataUrl : null,
+          ocrCandidates: requiresPhoto ? result?.candidates : null);
+      if (!mounted || auth.session?.email != email) return;
+      if (widget.isEdit) Navigator.of(context).pop();
       await auth.bootstrap();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('저장되었습니다.')),
-      );
-      if (widget.isEdit) {
-        unawaited(Navigator.of(context).maybePop());
-      }
-    } on ApiException catch (e) {
-      setState(() => _error = e.message);
-    } on NetworkException catch (e) {
-      setState(() => _error = e.message);
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted && auth.session?.email == email) {
+        setState(() => _error = '$e');
+        // Another administrator may have restored the photo requirement while
+        // this form was open. Re-read policy instead of leaving an unusable form.
+        if (e is ApiException && [400, 409].contains(e.statusCode)) {
+          await auth.bootstrap();
+        }
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
   }
 
+  bool get _nicknameOnly =>
+      widget.isEdit &&
+      context.read<AuthProvider>().session?.approved == true &&
+      normalizePlate(_number) == _originalVehicle &&
+      isSinglePlate(_number);
+  bool get _canSave =>
+      isSinglePlate(_number) &&
+      (_result != null ||
+          _nicknameOnly ||
+          context.read<AuthProvider>().session?.vehicleVerificationRequired ==
+              false);
+
   @override
   Widget build(BuildContext context) {
-    if (!_initialLoaded) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
     final auth = context.watch<AuthProvider>();
+    final requiresPhoto = auth.session?.vehicleVerificationRequired ?? true;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.isEdit ? '내 정보 수정' : '프로필 입력'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
+      appBar:
+          AppBar(title: Text(widget.isEdit ? '내 정보 수정' : '차량번호 확인'), actions: [
+        IconButton(
             onPressed: auth.logout,
-            tooltip: '로그아웃',
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
+            icon: const Icon(Icons.logout),
+            tooltip: '로그아웃'),
+      ]),
+      body: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  widget.isEdit
-                      ? '닉네임, 차량번호, 전화번호를 직접 수정할 수 있습니다.'
-                      : '서비스 이용을 위해 기본 정보를 입력해 주세요.',
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  initialValue: auth.session?.email ?? '',
-                  enabled: false,
-                  decoration: const InputDecoration(
-                    labelText: '로그인 계정',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _nickname,
-                  decoration: const InputDecoration(
-                    labelText: '닉네임',
-                    hintText: '예: 101동 아이오닉',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (v) => (v?.trim().isEmpty ?? true) ? '닉네임을 입력하세요' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _vehicleNumber,
-                  decoration: const InputDecoration(
-                    labelText: '차량번호',
-                    hintText: '예: 123가4567',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (v) => (v?.trim().isEmpty ?? true) ? '차량번호를 입력하세요' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _phoneNumber,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: '전화번호',
-                    hintText: '예: 010-1234-5678',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (v) => (v?.trim().isEmpty ?? true) ? '전화번호를 입력하세요' : null,
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  '차량 사진',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  '번호판이 잘 보이도록 촬영 — 관리자 검토 후 삭제됩니다.',
-                  style: TextStyle(fontSize: 12, color: Colors.black54),
-                ),
-                const SizedBox(height: 8),
-                Row(
+              key: _form,
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _submitting ? null : _capturePhoto,
-                        icon: const Icon(Icons.photo_camera),
-                        label: const Text('카메라'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _submitting ? null : _pickPhoto,
-                        icon: const Icon(Icons.photo_library),
-                        label: const Text('갤러리'),
-                      ),
-                    ),
-                  ],
-                ),
-                if (_photoDataUrl != null) ...[
-                  const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.memory(
-                      _decodeBase64(_photoDataUrl!),
-                      height: 200,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  TextButton(
-                    onPressed: _submitting ? null : _clearPhoto,
-                    child: const Text('사진 제거'),
-                  ),
-                ],
-                if (_photoStatus.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      _photoStatus,
-                      style: const TextStyle(fontSize: 12, color: Colors.black54),
-                    ),
-                  ),
-                if (_error != null) ...[
-                  const SizedBox(height: 16),
-                  Text(_error!, style: const TextStyle(color: Colors.red)),
-                ],
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: _submitting ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                  ),
-                  child: Text(_submitting ? '저장 중...' : '저장하기'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+                    if (_notices.isNotEmpty)
+                      Card(
+                          child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('관리자 안내'),
+                                    ..._notices.map((n) => Text(n.message)),
+                                  ]))),
+                    TextFormField(
+                        initialValue: auth.session?.email ?? '',
+                        enabled: false,
+                        decoration: const InputDecoration(labelText: '로그인 계정')),
+                    TextFormField(
+                        initialValue: auth.session?.name ?? '',
+                        enabled: false,
+                        decoration:
+                            const InputDecoration(labelText: 'Google 표시 이름')),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                        controller: _nickname,
+                        enabled: !_submitting,
+                        maxLength: 30,
+                        decoration: const InputDecoration(
+                            labelText: '닉네임', border: OutlineInputBorder()),
+                        validator: (value) => value == null ||
+                                value.trim().isEmpty ||
+                                value.trim().length > 30
+                            ? '닉네임을 1~30자로 입력해 주세요.'
+                            : null),
+                    const SizedBox(height: 16),
+                    Text(requiresPhoto
+                        ? '차량번호는 한 계정에 한 개만 등록합니다. 번호를 변경하면 기존 차량을 대체하며, 새 번호판 사진 OCR 비교와 관리자 재승인이 필요합니다. 사진은 검토 후 삭제됩니다. 닉네임만 수정하면 기존 승인은 유지됩니다.'
+                        : '현재 차량 사진·OCR 인증은 생략됩니다. 차량번호 한 개를 입력하고 관리자 승인을 받아 주세요. 차량번호를 변경하면 재승인이 필요하며, 닉네임만 수정하면 기존 승인은 유지됩니다.'),
+                    const SizedBox(height: 16),
+                    if (requiresPhoto)
+                      VehicleOcrInput(
+                          key: ValueKey('ocr-$_originalVehicle'),
+                          initialNumber: _number,
+                          enabled: !_submitting,
+                          onNumberChanged: (number) =>
+                              setState(() => _number = number),
+                          onChanged: (result) =>
+                              setState(() => _result = result))
+                    else
+                      TextFormField(
+                          key: const ValueKey('vehicle-number-without-photo'),
+                          initialValue: _number,
+                          enabled: !_submitting,
+                          decoration: const InputDecoration(
+                              labelText: '차량번호',
+                              hintText: '예: 123가4567',
+                              border: OutlineInputBorder()),
+                          onChanged: (value) => setState(() {
+                                _number = value;
+                                _result = null;
+                              }),
+                          validator: (value) => isSinglePlate(value ?? '')
+                              ? null
+                              : '차량번호 한 개만 정확히 입력해 주세요.'),
+                    if (_error != null)
+                      Text(_error!, style: const TextStyle(color: Colors.red)),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                        onPressed: _submitting || !_canSave ? null : _submit,
+                        child: Text(_submitting
+                            ? '전송 중...'
+                            : _nicknameOnly && _result == null
+                                ? '저장하기'
+                                : '승인 요청')),
+                  ]))),
     );
-  }
-
-  static Uint8List _decodeBase64(String dataUrl) {
-    final body = dataUrl.contains(',') ? dataUrl.split(',').last : dataUrl;
-    return Uri.parse('data:application/octet-stream;base64,$body').data!.contentAsBytes();
   }
 }

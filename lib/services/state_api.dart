@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../core/api_client.dart';
-import '../core/json_utils.dart';
+import '../core/errors.dart';
 import '../models/app_state.dart';
 
 /// /api/state — 주차 현황 전체 조회/변경.
@@ -16,7 +16,7 @@ class StateApi {
     try {
       final res = await _client.dio.get<dynamic>('/api/state');
       final body = await _client.requireOk(res);
-      return AppState.fromJson(asMapOrNull(body['state']) ?? const {});
+      return _decodeState(body);
     } on DioException catch (e) {
       _client.rethrowAsApp(e);
     }
@@ -29,9 +29,21 @@ class StateApi {
       _client.etagCache.invalidate('/api/state');
       final res = await _client.dio.post<dynamic>('/api/state', data: payload);
       final body = await _client.requireOk(res);
-      return AppState.fromJson(asMapOrNull(body['state']) ?? const {});
+      return _decodeState(body);
     } on DioException catch (e) {
       _client.rethrowAsApp(e);
     }
+  }
+
+  AppState _decodeState(Map<String, dynamic> body) {
+    final raw = body['state'];
+    if (raw is! Map<String, dynamic> ||
+        (raw.containsKey('stateVersion') &&
+            (raw['stateVersion'] is! int ||
+                (raw['stateVersion'] as int) < 0))) {
+      throw ApiException(
+          statusCode: 502, message: '잘못된 주차 상태 응답입니다. 다시 시도해 주세요.');
+    }
+    return AppState.fromJson(raw);
   }
 }

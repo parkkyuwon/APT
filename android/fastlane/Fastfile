@@ -1,0 +1,138 @@
+default_platform(:android)
+
+# Fastfile — APT EV Charging Android 자동 배포
+#
+# 전제 조건:
+# - apt-upload.jks + android/key.properties 가 이미 설정되어 있음 (release 서명)
+# - android/fastlane/play-store-credentials.json 에 Play Developer API 서비스계정 JSON 키 위치
+# - Ruby + fastlane (`gem install bundler && bundle install`) 설치 완료
+#
+# 사용 예:
+#   cd android
+#   bundle exec fastlane deploy                        # internal 트랙 (기본)
+#   bundle exec fastlane deploy track:alpha            # 비공개 테스트(closed)
+#   bundle exec fastlane deploy track:beta             # 공개 테스트(open)
+#   bundle exec fastlane deploy track:production       # 정식 출시
+#   bundle exec fastlane build                         # AAB 빌드만 (업로드 X)
+#   bundle exec fastlane bump_build                    # pubspec.yaml 의 versionCode +1
+#
+# 환경변수 (선택):
+#   API_BASE_URL       기본 https://apt-ev-charging.vercel.app
+#   GOOGLE_CLIENT_ID   기본 838650325157-jeblq38cd6i2nln1vvjua8o0set46bo0.apps.googleusercontent.com
+#   APP_ENV            기본 prod
+#   PUB_CACHE          기본 D:\PubCache (한글 사용자명 회피)
+#   GRADLE_USER_HOME   기본 D:\GradleHome (한글 사용자명 회피)
+
+DEFAULT_API_BASE_URL = "https://apt-ev-charging.vercel.app"
+DEFAULT_GOOGLE_CLIENT_ID = "838650325157-jeblq38cd6i2nln1vvjua8o0set46bo0.apps.googleusercontent.com"
+DEFAULT_APP_ENV = "prod"
+
+# 프로젝트 루트 (android/ 의 부모)
+def flutter_root
+  File.expand_path("../..", __dir__)
+end
+
+# 한글 사용자 경로 회피용 환경변수 (Windows 박규원 케이스).
+# 이미 시스템 env 에 설정돼 있으면 그대로 사용.
+def ensure_ascii_cache_paths
+  ENV["PUB_CACHE"] ||= "D:\\PubCache"
+  ENV["GRADLE_USER_HOME"] ||= "D:\\GradleHome"
+  ENV["TEMP"] = "D:\\Temp" if Dir.exist?("D:\\Temp")
+  ENV["TMP"]  = "D:\\Temp" if Dir.exist?("D:\\Temp")
+end
+
+def dart_defines
+  [
+    "API_BASE_URL=#{ENV['API_BASE_URL'] || DEFAULT_API_BASE_URL}",
+    "GOOGLE_CLIENT_ID=#{ENV['GOOGLE_CLIENT_ID'] || DEFAULT_GOOGLE_CLIENT_ID}",
+    "APP_ENV=#{ENV['APP_ENV'] || DEFAULT_APP_ENV}",
+  ]
+end
+
+def flutter_build_appbundle
+  ensure_ascii_cache_paths
+  Dir.chdir(flutter_root) do
+    args = ["flutter", "build", "appbundle", "--release",
+            "--split-debug-info=build/symbols",
+            "--obfuscate"]
+    firebase_defines = ENV["FIREBASE_DART_DEFINES_FILE"] || File.join(flutter_root, "android", "fastlane", "firebase-production.defines.json")
+    UI.user_error!("Firebase build configuration is missing: #{firebase_defines}") unless File.file?(firebase_defines)
+    args << "--dart-define-from-file=#{firebase_defines}"
+    dart_defines.each { |kv| args << "--dart-define=#{kv}" }
+    sh(*args)
+  end
+end
+
+def aab_path
+  File.join(flutter_root, "build", "app", "outputs", "bundle", "release", "app-release.aab")
+end
+
+def symbols_dir
+  File.join(flutter_root, "build", "symbols")
+end
+
+platform :android do
+  desc "AAB 만 빌드 (업로드 X)"
+  lane :build do
+    flutter_build_appbundle
+    UI.success("✅ AAB 빌드 완료: #{aab_path}")
+  end
+
+  desc "Play Console 에 AAB 업로드 (옵션: track, release_status, rollout)"
+  lane :deploy do |options|
+    track = options[:track] || "internal"
+    release_status = options[:release_status] || "draft"
+    rollout = options[:rollout]  # production 트랙 점진 배포용 (0.1 = 10%)
+
+    flutter_build_appbundle
+    UI.message("✅ AAB 빌드 완료, Play Console 업로드 시작 (track=#{track})")
+
+    upload_to_play_store(
+      track: track,
+      aab: aab_path,
+      mapping_paths: Dir.glob(File.join(symbols_dir, "**", "*.map")),
+      release_status: release_status,
+      rollout: rollout,
+      skip_upload_apk: true,
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+      validate_only: false,
+    )
+    UI.success("🚀 Play Console 업로드 완료 (track=#{track}, status=#{release_status})")
+  end
+
+  desc "Dry-run: AAB 만 검증 (Play Console 에 실제 게시 X)"
+  lane :validate do |options|
+    track = options[:track] || "internal"
+    flutter_build_appbundle
+    upload_to_play_store(
+      track: track,
+      aab: aab_path,
+      validate_only: true,
+      skip_upload_apk: true,
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+    )
+    UI.success("✅ Play Console validate 통과 (track=#{track})")
+  end
+
+  desc "pubspec.yaml 의 versionCode (+빌드번호) 만 +1 증가"
+  lane :bump_build do
+    pubspec = File.join(flutter_root, "pubspec.yaml")
+    content = File.read(pubspec, encoding: "UTF-8")
+    new_content = content.sub(/^version:\s*(\d+\.\d+\.\d+)\+(\d+)/) do
+      name = $1
+      build = $2.to_i + 1
+      UI.success("📦 versionCode: #{$2} → #{build}")
+      "version: #{name}+#{build}"
+    end
+    if new_content == content
+      UI.user_error!("pubspec.yaml 에서 version 줄을 찾지 못했습니다.")
+    end
+    File.write(pubspec, new_content, encoding: "UTF-8")
+  end
+end

@@ -1,0 +1,745 @@
+{
+  "schemaVersion": "1.0",
+  "updatedAt": "2026-11-16T05:53:16Z",
+  "source": {
+    "diagram": "app-server-integration.mmd",
+    "scope": "workspace:APT-APP,APT-Prj",
+    "workspaceRoot": "D:/vsCodeProg",
+    "notes": "Vercel 운영 배포·Neon 마이그레이션·Android Firebase 설정 완료. 실기기 전달 및 iOS APNs 미검증."
+  },
+  "components": [
+    {
+      "id": "app",
+      "name": "app",
+      "kind": "application",
+      "files": [
+        "APT-APP/lib/main.dart"
+      ]
+    },
+    {
+      "id": "auth",
+      "name": "auth",
+      "kind": "module",
+      "files": [
+        "APT-APP/lib/providers/auth_provider.dart",
+        "APT-APP/lib/services/auth_api.dart"
+      ]
+    },
+    {
+      "id": "guest",
+      "name": "guest",
+      "kind": "ui",
+      "files": [
+        "APT-APP/lib/screens/public/guest_shell_screen.dart"
+      ]
+    },
+    {
+      "id": "member",
+      "name": "member",
+      "kind": "ui",
+      "files": [
+        "APT-APP/lib/screens/public/home_screen.dart",
+        "APT-APP/lib/screens/public/parking_list_screen.dart",
+        "APT-APP/lib/screens/public/map_view_screen.dart",
+        "APT-APP/lib/providers/app_state_provider.dart"
+      ]
+    },
+    {
+      "id": "profile",
+      "name": "profile",
+      "kind": "ui",
+      "files": [
+        "APT-APP/lib/screens/public/mypage_screen.dart",
+        "APT-APP/lib/services/profile_api.dart",
+        "APT-APP/lib/services/my_history_api.dart"
+      ]
+    },
+    {
+      "id": "chat",
+      "name": "chat",
+      "kind": "ui",
+      "files": [
+        "APT-APP/lib/screens/public/chat_screen.dart",
+        "APT-APP/lib/services/chat_api.dart"
+      ]
+    },
+    {
+      "id": "admin",
+      "name": "admin",
+      "kind": "ui",
+      "files": [
+        "APT-APP/lib/screens/admin/admin_dashboard.dart"
+      ]
+    },
+    {
+      "id": "ble",
+      "name": "ble",
+      "kind": "module",
+      "files": [
+        "APT-APP/lib/screens/admin/console_beacon_scan.dart",
+        "APT-APP/lib/core/bluetooth_permissions.dart"
+      ]
+    },
+    {
+      "id": "links",
+      "name": "links",
+      "kind": "module",
+      "files": [
+        "APT-APP/lib/core/deep_link.dart",
+        "APT-APP/lib/core/qr_payload.dart",
+        "APT-APP/lib/core/foreground_nfc.dart",
+        "APT-APP/lib/core/app_route_observer.dart",
+        "APT-APP/android/app/src/main/kotlin/com/bluetilelab/apt_ev/ForegroundNfcReader.kt"
+      ],
+      "notes": "Android foreground Reader Mode to validated DeepLink; only visible/resumed home processes pending tags. RF verification pending."
+    },
+    {
+      "id": "departure",
+      "name": "departure",
+      "kind": "module",
+      "files": [
+        "APT-APP/lib/models/departure_request.dart",
+        "APT-APP/lib/services/departure_requests_api.dart",
+        "APT-APP/lib/widgets/departure_request_button.dart",
+        "APT-APP/lib/screens/public/departure_requests_screen.dart"
+      ]
+    },
+    {
+      "id": "push-client",
+      "name": "push-client",
+      "kind": "module",
+      "files": [
+        "APT-APP/lib/services/push_notifications.dart",
+        "APT-APP/lib/services/push_identity.dart",
+        "APT-APP/ios/Runner/Runner.entitlements"
+      ]
+    },
+    {
+      "id": "services",
+      "name": "services",
+      "kind": "service",
+      "files": [
+        "APT-APP/lib/services/services.dart"
+      ]
+    },
+    {
+      "id": "http",
+      "name": "http",
+      "kind": "module",
+      "files": [
+        "APT-APP/lib/core/api_client.dart"
+      ]
+    },
+    {
+      "id": "storage",
+      "name": "storage",
+      "kind": "module",
+      "files": [
+        "APT-APP/lib/core/session_store.dart",
+        "APT-APP/lib/core/state_cache.dart"
+      ]
+    },
+    {
+      "id": "web",
+      "name": "web",
+      "kind": "ui",
+      "files": [
+        "APT-Prj/index.html",
+        "APT-Prj/script.js",
+        "APT-Prj/parking-list.html",
+        "APT-Prj/chat.js",
+        "APT-Prj/profile.js",
+        "APT-Prj/mypage.js",
+        "APT-Prj/admin.js"
+      ]
+    },
+    {
+      "id": "server-auth",
+      "name": "server-auth",
+      "kind": "service",
+      "files": [
+        "APT-Prj/api/auth.js",
+        "APT-Prj/api/_lib/auth.js",
+        "APT-Prj/sql/state-concurrency.sql"
+      ],
+      "notes": "Local withdrawn cleanup rechecks account incarnation in one SQL transaction; production unchanged."
+    },
+    {
+      "id": "server-parking",
+      "name": "server-parking",
+      "kind": "service",
+      "files": [
+        "APT-Prj/api/state.js",
+        "APT-Prj/api/public-dashboard.js",
+        "APT-Prj/api/public-highlight.js",
+        "APT-Prj/sql/state-concurrency.sql"
+      ],
+      "notes": "Local stateVersion administrator CAS and versioned SQL writer; new migration not applied to production."
+    },
+    {
+      "id": "server-members",
+      "name": "server-members",
+      "kind": "service",
+      "files": [
+        "APT-Prj/api/profile.js",
+        "APT-Prj/api/users.js"
+      ]
+    },
+    {
+      "id": "server-chat",
+      "name": "server-chat",
+      "kind": "service",
+      "files": [
+        "APT-Prj/api/chat.js",
+        "APT-Prj/api/logs.js",
+        "APT-Prj/api/my-history.js"
+      ]
+    },
+    {
+      "id": "server-departure",
+      "name": "server-departure",
+      "kind": "service",
+      "files": [
+        "APT-Prj/api/departure-requests.js",
+        "APT-Prj/api/_lib/departure-service.js",
+        "APT-Prj/api/_lib/departure-http.js",
+        "APT-Prj/api/_lib/departure-entrypoints.js",
+        "APT-Prj/api/profile.js",
+        "APT-Prj/vercel.json",
+        "APT-Prj/.vercelignore"
+      ],
+      "notes": "공개 API는 기존 주소를 유지하며 Vercel rewrite로 profile 함수에 연결. 로컬 직접 진입 wrapper는 배포 제외. Hobby 함수 12개 유지."
+    },
+    {
+      "id": "server-push",
+      "name": "server-push",
+      "kind": "service",
+      "files": [
+        "APT-Prj/api/push-tokens.js",
+        "APT-Prj/api/_lib/departure-push.js",
+        "APT-Prj/api/_lib/departure-store.js",
+        "APT-Prj/api/_lib/departure-entrypoints.js",
+        "APT-Prj/api/profile.js",
+        "APT-Prj/vercel.json",
+        "APT-Prj/.vercelignore"
+      ],
+      "notes": "공개 API는 기존 주소를 유지하며 Vercel rewrite로 profile 함수에 연결. 로컬 직접 진입 wrapper는 배포 제외. Hobby 함수 12개 유지."
+    },
+    {
+      "id": "db",
+      "name": "db",
+      "kind": "database",
+      "files": [
+        "APT-Prj/api/_lib/db.js",
+        "APT-Prj/sql/departure-requests.sql"
+      ]
+    },
+    {
+      "id": "mail",
+      "name": "mail",
+      "kind": "service",
+      "files": [
+        "APT-Prj/api/_lib/messaging.js"
+      ]
+    },
+    {
+      "id": "google",
+      "name": "google",
+      "kind": "external-system",
+      "files": []
+    },
+    {
+      "id": "fcm",
+      "name": "fcm",
+      "kind": "external-system",
+      "files": [],
+      "notes": "aptrequest, Android apt.ev.service 등록, FCM API 전용 계정과 Vercel sensitive 환경 변수 설정. 실제 두 기기 알림 미검증."
+    },
+    {
+      "id": "apns",
+      "name": "apns",
+      "kind": "external-system",
+      "files": []
+    },
+    {
+      "id": "smtp",
+      "name": "smtp",
+      "kind": "external-system",
+      "files": []
+    },
+    {
+      "id": "note",
+      "name": "note",
+      "kind": "other",
+      "files": []
+    },
+    {
+      "id": "vehicle-policy",
+      "name": "Vehicle photo/OCR policy and approval exemption",
+      "kind": "module",
+      "files": [
+        "APT-APP/lib/models/session.dart",
+        "APT-APP/lib/models/app_state.dart",
+        "APT-APP/lib/models/user.dart",
+        "APT-APP/lib/screens/onboarding/profile_setup_screen.dart",
+        "APT-APP/lib/screens/admin/console_operations.dart",
+        "APT-APP/lib/screens/admin/console_members.dart",
+        "APT-Prj/api/profile.js",
+        "APT-Prj/api/users.js",
+        "APT-Prj/api/_lib/db.js",
+        "APT-Prj/sql/vehicle-verification-policy.sql"
+      ],
+      "symbols": [
+        "vehicleVerificationRequired",
+        "vehicleVerificationExempt",
+        "vehicle_verification_exempt"
+      ],
+      "notes": "Backend migration and production rollout verified. OFF skips photos but retains consent/admin approval; default ON. Android candidate not yet submitted to Play."
+    }
+  ],
+  "relationships": [
+    {
+      "from": "app",
+      "to": "auth",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "auth",
+      "to": "guest",
+      "kind": "integration",
+      "label": "비회원"
+    },
+    {
+      "from": "auth",
+      "to": "member",
+      "kind": "integration",
+      "label": "승인 회원"
+    },
+    {
+      "from": "member",
+      "to": "profile",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "member",
+      "to": "chat",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "member",
+      "to": "departure",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "member",
+      "to": "admin",
+      "kind": "integration",
+      "label": "관리자"
+    },
+    {
+      "from": "admin",
+      "to": "ble",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "links",
+      "to": "member",
+      "kind": "integration",
+      "label": "슬롯 선택"
+    },
+    {
+      "from": "guest",
+      "to": "services",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "auth",
+      "to": "services",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "member",
+      "to": "services",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "profile",
+      "to": "services",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "chat",
+      "to": "services",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "admin",
+      "to": "services",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "departure",
+      "to": "services",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "auth",
+      "to": "push-client",
+      "kind": "integration",
+      "label": "계정 수명"
+    },
+    {
+      "from": "push-client",
+      "to": "services",
+      "kind": "integration",
+      "label": "토큰 등록 / 요청 재조회"
+    },
+    {
+      "from": "services",
+      "to": "http",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "auth",
+      "to": "storage",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "http",
+      "to": "storage",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "member",
+      "to": "storage",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "push-client",
+      "to": "departure",
+      "kind": "integration",
+      "label": "알림 선택 후 서버 권한 확인"
+    },
+    {
+      "from": "web",
+      "to": "server-auth",
+      "kind": "integration",
+      "label": "동일 API 공유"
+    },
+    {
+      "from": "server-auth",
+      "to": "server-parking",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "server-auth",
+      "to": "server-members",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "server-auth",
+      "to": "server-chat",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "server-auth",
+      "to": "server-departure",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "server-auth",
+      "to": "server-push",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "server-auth",
+      "to": "db",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "server-parking",
+      "to": "db",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "server-members",
+      "to": "db",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "server-chat",
+      "to": "db",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "server-departure",
+      "to": "db",
+      "kind": "integration",
+      "label": "현재 주차 검증·원자적 저장"
+    },
+    {
+      "from": "server-push",
+      "to": "db",
+      "kind": "integration",
+      "label": "만료 / 로그아웃 토큰 제외"
+    },
+    {
+      "from": "server-departure",
+      "to": "server-push",
+      "kind": "integration",
+      "label": "저장 후 발송"
+    },
+    {
+      "from": "server-members",
+      "to": "mail",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "http",
+      "to": "server-auth",
+      "kind": "integration",
+      "label": "HTTPS · 기존 쿠키 세션"
+    },
+    {
+      "from": "auth",
+      "to": "google",
+      "kind": "integration",
+      "label": "Google 로그인"
+    },
+    {
+      "from": "server-auth",
+      "to": "google",
+      "kind": "integration",
+      "label": "ID 토큰 확인"
+    },
+    {
+      "from": "mail",
+      "to": "smtp",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "server-push",
+      "to": "fcm",
+      "kind": "integration",
+      "label": "설정 후 개별 기기로"
+    },
+    {
+      "from": "fcm",
+      "to": "push-client",
+      "kind": "integration",
+      "label": "Android 알림"
+    },
+    {
+      "from": "fcm",
+      "to": "apns",
+      "kind": "integration",
+      "label": "iOS 전달"
+    },
+    {
+      "from": "apns",
+      "to": "push-client",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "links",
+      "to": "web",
+      "kind": "integration",
+      "label": "Vercel 슬롯 URL"
+    },
+    {
+      "from": "note",
+      "to": "departure",
+      "kind": "integration",
+      "label": "사용/연결"
+    },
+    {
+      "from": "admin",
+      "to": "vehicle-policy",
+      "kind": "uses",
+      "label": "Change global requirement with stateVersion",
+      "evidence": [
+        "APT-APP/lib/models/session.dart",
+        "APT-APP/lib/models/app_state.dart",
+        "APT-APP/lib/models/user.dart",
+        "APT-APP/lib/screens/onboarding/profile_setup_screen.dart",
+        "APT-APP/lib/screens/admin/console_operations.dart",
+        "APT-APP/lib/screens/admin/console_members.dart",
+        "APT-Prj/api/profile.js",
+        "APT-Prj/api/users.js",
+        "APT-Prj/api/_lib/db.js",
+        "APT-Prj/sql/vehicle-verification-policy.sql"
+      ]
+    },
+    {
+      "from": "profile",
+      "to": "vehicle-policy",
+      "kind": "uses",
+      "label": "Bootstrap policy controls photo requirement",
+      "evidence": [
+        "APT-APP/lib/models/session.dart",
+        "APT-APP/lib/models/app_state.dart",
+        "APT-APP/lib/models/user.dart",
+        "APT-APP/lib/screens/onboarding/profile_setup_screen.dart",
+        "APT-APP/lib/screens/admin/console_operations.dart",
+        "APT-APP/lib/screens/admin/console_members.dart",
+        "APT-Prj/api/profile.js",
+        "APT-Prj/api/users.js",
+        "APT-Prj/api/_lib/db.js",
+        "APT-Prj/sql/vehicle-verification-policy.sql"
+      ]
+    },
+    {
+      "from": "web",
+      "to": "vehicle-policy",
+      "kind": "uses",
+      "label": "Same policy for browser submission and approval",
+      "evidence": [
+        "APT-APP/lib/models/session.dart",
+        "APT-APP/lib/models/app_state.dart",
+        "APT-APP/lib/models/user.dart",
+        "APT-APP/lib/screens/onboarding/profile_setup_screen.dart",
+        "APT-APP/lib/screens/admin/console_operations.dart",
+        "APT-APP/lib/screens/admin/console_members.dart",
+        "APT-Prj/api/profile.js",
+        "APT-Prj/api/users.js",
+        "APT-Prj/api/_lib/db.js",
+        "APT-Prj/sql/vehicle-verification-policy.sql"
+      ]
+    },
+    {
+      "from": "vehicle-policy",
+      "to": "server-members",
+      "kind": "uses",
+      "label": "Authoritative pending submission and approval",
+      "evidence": [
+        "APT-APP/lib/models/session.dart",
+        "APT-APP/lib/models/app_state.dart",
+        "APT-APP/lib/models/user.dart",
+        "APT-APP/lib/screens/onboarding/profile_setup_screen.dart",
+        "APT-APP/lib/screens/admin/console_operations.dart",
+        "APT-APP/lib/screens/admin/console_members.dart",
+        "APT-Prj/api/profile.js",
+        "APT-Prj/api/users.js",
+        "APT-Prj/api/_lib/db.js",
+        "APT-Prj/sql/vehicle-verification-policy.sql"
+      ]
+    },
+    {
+      "from": "vehicle-policy",
+      "to": "db",
+      "kind": "uses",
+      "label": "Policy state and distinct persisted exemption",
+      "evidence": [
+        "APT-APP/lib/models/session.dart",
+        "APT-APP/lib/models/app_state.dart",
+        "APT-APP/lib/models/user.dart",
+        "APT-APP/lib/screens/onboarding/profile_setup_screen.dart",
+        "APT-APP/lib/screens/admin/console_operations.dart",
+        "APT-APP/lib/screens/admin/console_members.dart",
+        "APT-Prj/api/profile.js",
+        "APT-Prj/api/users.js",
+        "APT-Prj/api/_lib/db.js",
+        "APT-Prj/sql/vehicle-verification-policy.sql"
+      ]
+    },
+    {
+      "from": "server-auth",
+      "to": "vehicle-policy",
+      "kind": "uses",
+      "label": "Existing approved exemption permits access after ON",
+      "evidence": [
+        "APT-APP/lib/models/session.dart",
+        "APT-APP/lib/models/app_state.dart",
+        "APT-APP/lib/models/user.dart",
+        "APT-APP/lib/screens/onboarding/profile_setup_screen.dart",
+        "APT-APP/lib/screens/admin/console_operations.dart",
+        "APT-APP/lib/screens/admin/console_members.dart",
+        "APT-Prj/api/profile.js",
+        "APT-Prj/api/users.js",
+        "APT-Prj/api/_lib/db.js",
+        "APT-Prj/sql/vehicle-verification-policy.sql"
+      ]
+    }
+  ],
+  "flows": [
+    {
+      "id": "member-parking",
+      "kind": "data",
+      "steps": [
+        "member",
+        "services",
+        "http",
+        "server-auth",
+        "server-parking",
+        "db"
+      ]
+    },
+    {
+      "id": "departure-request",
+      "kind": "data",
+      "steps": [
+        "departure",
+        "services",
+        "http",
+        "server-auth",
+        "server-departure",
+        "db",
+        "server-push",
+        "fcm",
+        "push-client"
+      ]
+    },
+    {
+      "id": "inbox-read",
+      "kind": "data",
+      "steps": [
+        "push-client",
+        "departure",
+        "services",
+        "http",
+        "server-auth",
+        "server-departure",
+        "db"
+      ]
+    },
+    {
+      "id": "web-shared-api",
+      "kind": "data",
+      "steps": [
+        "web",
+        "server-auth",
+        "server-parking",
+        "db"
+      ]
+    }
+  ],
+  "changeNote": "2026-11-16 production backend deployed dpl_3A5VznwniVJYhiFVu1p3QiBGph2E after guarded state-concurrency and vehicle-verification-policy migrations; existing user/parking records preserved, policy ON. Android1.1.5+22 candidate pending signed bundle validation and Play submission. Parking map previews not applied."
+}

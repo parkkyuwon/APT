@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/deep_link.dart';
+import '../../core/app_route_observer.dart';
 import '../../core/duration_presets.dart';
 import '../../models/parking_slot.dart';
 import '../../providers/app_state_provider.dart';
@@ -16,24 +19,99 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with RouteAware, WidgetsBindingObserver {
+  bool _ready = false;
+  bool _handlingLink = false;
+  ModalRoute<dynamic>? _route;
+
+  bool get _visible =>
+      mounted &&
+      _route?.isCurrent == true &&
+      (WidgetsBinding.instance.lifecycleState == null ||
+          WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed);
+
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final app = context.read<AppStateProvider>();
-      await app.start();
-      if (!mounted) return;
-      await _maybeOpenDeepLinkSlot();
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_processPendingLinks());
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (_route == route) return;
+    appRouteObserver.unsubscribe(this);
+    _route = route;
+    if (route != null) appRouteObserver.subscribe(this, route);
+  }
+
+  @override
+  void didPopNext() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_processPendingLinks());
     });
   }
 
+  void _onDeepLink() => unawaited(_processPendingLinks());
+
+  bool _hasMemberSession([String? email]) {
+    final auth = context.read<AuthProvider>();
+    return (auth.stage == AuthStage.approved ||
+            auth.stage == AuthStage.admin) &&
+        auth.session != null &&
+        (email == null || auth.session!.email == email);
+  }
+
+  Future<void> _processPendingLinks() async {
+    if (!_visible || !_ready || _handlingLink || !_hasMemberSession()) return;
+    _handlingLink = true;
+    try {
+      while (_visible && DeepLink.hasPendingSlot && _hasMemberSession()) {
+        final slot = DeepLink.pendingSlotId!;
+        final token = DeepLink.beginSlotHandling(slot);
+        try {
+          await _maybeOpenDeepLinkSlot();
+        } finally {
+          DeepLink.finishSlotHandling(token);
+        }
+      }
+    } finally {
+      _handlingLink = false;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    DeepLink.addListener(_onDeepLink);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final app = context.read<AppStateProvider>();
+      await app.start();
+      if (!mounted) return;
+      _ready = true;
+      await _processPendingLinks();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    appRouteObserver.unsubscribe(this);
+    DeepLink.removeListener(_onDeepLink);
+    super.dispose();
+  }
+
   /// NFC 태그 / QR / 외부 링크가 ?slot=<id> 로 앱을 진입시켰을 때.
-  /// 다이얼로그를 띄우지 않고 즉시 주차 등록을 완료한다 — 사용자 차량/연락처를
+  /// 다이얼로그를 띄우지 않고 즉시 주차 등록을 완료한다 — 사용자 차량번호를
   /// 세션에서, 시작 시간을 현재 시각으로, 충전 시간을 충전기 종류 표준값으로 자동 채움.
   /// 충돌(이미 점유·차단·내 차가 다른 슬롯에 등록 등)은 안내 SnackBar 로 처리.
   Future<void> _maybeOpenDeepLinkSlot() async {
-    final pending = DeepLink.consumePendingSlot();
+    final pending = DeepLink.pendingSlotId;
     if (pending == null) return;
     final messenger = ScaffoldMessenger.of(context);
     final app = context.read<AppStateProvider>();
@@ -51,7 +129,17 @@ class _HomeScreenState extends State<HomeScreen> {
     // 정확히 감지하기 위함. 캐시가 stale 일 가능성을 차단.
     app.invalidateStateCache();
     await app.refresh();
-    if (!mounted) return;
+    if (!_visible || !_hasMemberSession(session.email)) return;
+    // A newer tag replaces a still-uncommitted read; a hidden home keeps it.
+    if (DeepLink.pendingSlotId != pending) return;
+    DeepLink.consumePendingSlot();
+    if (app.errorMessage != null) {
+      messenger.showSnackBar(SnackBar(
+        content: Text('최신 주차 정보를 확인하지 못했습니다: ${app.errorMessage}'),
+        backgroundColor: Colors.red,
+      ));
+      return;
+    }
 
     ParkingSlot? matched;
     for (final list in app.state.slots.values) {
@@ -81,8 +169,8 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       return;
     }
-    final isOwnedByMe = detail.ownerEmail == session.email;
-    final isOwnedByOther = detail.ownerEmail.isNotEmpty && !isOwnedByMe;
+    final isOwnedByMe = detail.isOwnedBy(session.email);
+    final isOwnedByOther = detail.hasParkingRecord && !isOwnedByMe;
     if (isOwnedByOther) {
       messenger.showSnackBar(
         SnackBar(
@@ -113,11 +201,10 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    if (session.vehicleNumber.trim().isEmpty ||
-        session.phoneNumber.trim().isEmpty) {
+    if (session.vehicleNumber.trim().isEmpty) {
       messenger.showSnackBar(
         const SnackBar(
-          content: Text('내 정보(차량번호·전화번호)를 먼저 등록해 주세요.'),
+          content: Text('내 정보에 차량번호를 먼저 등록해 주세요.'),
         ),
       );
       return;
@@ -128,6 +215,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       if (myOtherSlot != null && myOtherSlot != matched.id) {
         await app.clearSlotDetail(myOtherSlot);
+        if (!mounted || !_hasMemberSession(session.email)) return;
       }
 
       final start = DateTime.now();
@@ -136,7 +224,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final autoDetail = SlotDetail(
         vehicleNumber: session.vehicleNumber.trim(),
-        contact: session.phoneNumber.trim(),
+        contact: '',
         contactVisible: false,
         startTime: start.toIso8601String(),
         departureTime: departure.toIso8601String(),
@@ -202,7 +290,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final app = context.watch<AppStateProvider>();
     final auth = context.watch<AuthProvider>();
     final session = auth.session;
-    final myOwnedSlotId = session != null ? app.findMyOwnedSlot(session.email) : null;
+    final myOwnedSlotId =
+        session != null ? app.findMyOwnedSlot(session.email) : null;
 
     return DefaultTabController(
       length: 2,
@@ -217,7 +306,9 @@ class _HomeScreenState extends State<HomeScreen> {
               errorMessage: app.errorMessage,
               onRefresh: app.refresh,
               myOwnedSlotId: myOwnedSlotId,
-              onCheckout: myOwnedSlotId == null ? null : () => _checkoutMyCar(myOwnedSlotId),
+              onCheckout: myOwnedSlotId == null
+                  ? null
+                  : () => _checkoutMyCar(myOwnedSlotId),
             ),
             Material(
               color: Theme.of(context).colorScheme.surface,
@@ -278,17 +369,21 @@ class _SummaryCard extends StatelessWidget {
                       const _SkeletonBar(width: 160, height: 22)
                     else
                       Text('$totalOccupied / $total 사용 중',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 4),
                     Text(
                       lastUpdated != null
                           ? '마지막 갱신: ${_formatTime(lastUpdated!)}'
                           : '로딩 중...',
-                      style: const TextStyle(fontSize: 12, color: Colors.black54),
+                      style:
+                          const TextStyle(fontSize: 12, color: Colors.black54),
                     ),
                     if (errorMessage != null) ...[
                       const SizedBox(height: 4),
-                      Text(errorMessage!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                      Text(errorMessage!,
+                          style:
+                              const TextStyle(color: Colors.red, fontSize: 12)),
                     ],
                   ],
                 ),

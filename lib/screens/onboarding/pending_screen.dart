@@ -38,7 +38,7 @@ class PendingScreen extends StatelessWidget {
               const SizedBox(height: 12),
               const Text(
                 '입력하신 정보를 관리자가 확인한 후 서비스를 이용할 수 있습니다.\n'
-                '승인이 완료되면 자동으로 접속됩니다.',
+                '승인 후 아래 상태 다시 확인 버튼을 누르면 서비스를 이용할 수 있습니다.',
                 style: TextStyle(fontSize: 14),
                 textAlign: TextAlign.center,
               ),
@@ -51,12 +51,12 @@ class PendingScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _row('이메일', auth.session!.email),
+                        if (auth.session!.name.isNotEmpty)
+                          _row('이름', auth.session!.name),
                         if (auth.session!.nickname.isNotEmpty)
                           _row('닉네임', auth.session!.nickname),
                         if (auth.session!.vehicleNumber.isNotEmpty)
                           _row('차량번호', auth.session!.vehicleNumber),
-                        if (auth.session!.phoneNumber.isNotEmpty)
-                          _row('전화번호', auth.session!.phoneNumber),
                       ],
                     ),
                   ),

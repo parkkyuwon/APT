@@ -1,0 +1,93 @@
+%% schemaVersion: 1.0; updatedAt: 2026-11-16T05:53:16Z; index: app-server-integration.index.json
+flowchart TB
+  subgraph APP["APT-APP · Flutter Android / iOS"]
+    app["app · 초기화 / 인증 루트"]
+    auth["auth · 로그인 / 승인 상태"]
+    guest["guest · 비회원 공개 조회"]
+    member["member · 홈 / 목록 / 지도 / 출차"]
+    profile["profile · 프로필 / 차량 사진 / 이용 이력"]
+    chat["chat · 회원 대화방"]
+    admin["admin · 회원 승인 / 주차 / QR / 운영"]
+    ble["ble · 비콘 스캔 / 실내 위치"]
+    links["links · QR / NFC 슬롯 진입"]
+    departure["departure · 출차 요청 / 받은 요청 목록"]
+    push-client["push-client · 알림 권한 / 기기 토큰 / 알림 선택"]
+    services["services · 기능별 API"]
+    http["http · Dio / 세션 쿠키 / ETag / 오류 처리"]
+    storage["storage · 보안 세션 / 회원 상태 캐시"]
+    app --> auth
+    auth -->|비회원| guest
+    auth -->|승인 회원| member
+    member --> profile
+    member --> chat
+    member --> departure
+    member -->|관리자| admin
+    admin --> ble
+    links -->|슬롯 선택| member
+    guest --> services
+    auth --> services
+    member --> services
+    profile --> services
+    chat --> services
+    admin --> services
+    departure --> services
+    auth -->|계정 수명| push-client
+    push-client -->|토큰 등록 / 요청 재조회| services
+    services --> http
+    auth --> storage
+    http --> storage
+    member --> storage
+    push-client -->|알림 선택 후 서버 권한 확인| departure
+  end
+  subgraph PRJ["APT-Prj · Vercel 웹 + Node.js API"]
+    web["web · HTML / JS 회원·관리자 화면"]
+    server-auth["server-auth · 세션 / 승인 / 차량 인증 / Origin 검사"]
+    server-parking["server-parking · 주차 상태 / 공개 현황"]
+    server-members["server-members · 프로필 / 회원 관리"]
+    server-chat["server-chat · 채팅 / 로그 / 이력"]
+    server-departure["server-departure · 출차 요청 / 수신자 제한 / 5분 제한"]
+    server-push["server-push · 세션별 토큰 / 개별 FCM 발송"]
+    db["db · Neon PostgreSQL<br/>주차 상태 / 회원 / 세션 / 채팅 / 이력<br/>출차 요청 / 기기 토큰"]
+    mail["mail · 관리자 가입 이메일"]
+    web -->|동일 API 공유| server-auth
+    server-auth --> server-parking
+    server-auth --> server-members
+    server-auth --> server-chat
+    server-auth --> server-departure
+    server-auth --> server-push
+    server-auth --> db
+    server-parking --> db
+    server-members --> db
+    server-chat --> db
+    server-departure -->|현재 주차 검증·원자적 저장| db
+    server-push -->|만료 / 로그아웃 토큰 제외| db
+    server-departure -->|저장 후 발송| server-push
+    server-members --> mail
+  end
+  google["google · Google 로그인 토큰 검증"]
+  fcm["fcm · Firebase Cloud Messaging<br/>aptrequest · 서버 인증 설정 완료<br/>실기기 전달 검증 필요"]
+  apns["apns · Apple 푸시<br/>APNs 키 / 서명 설정 필요"]
+  smtp["smtp · 기존 이메일 서비스"]
+  http -->|HTTPS · 기존 쿠키 세션| server-auth
+  auth -->|Google 로그인| google
+  server-auth -->|ID 토큰 확인| google
+  mail --> smtp
+  server-push -.->|개별 기기로| fcm
+  fcm -.->|Android 알림| push-client
+  fcm -.->|iOS 전달| apns
+  apns -.-> push-client
+  links -->|Vercel 슬롯 URL| web
+  note["실제 충전기와 연동 없음<br/>시간은 예상값 · 이용자가 완료 확인<br/>출차 요청만으로 슬롯 해제하지 않음"]
+  note --- departure
+  classDef pending fill:#fff3cd,stroke:#c99b10;
+  class apns pending;
+  %% State-concurrency and vehicle policy migrations deployed to production 2026-11-16.
+  %% stateVersion CAS / transactional withdrawn cleanup; iOS changes deferred.
+
+  vehicle-policy["vehicle-policy ? Global photo requirement and vehicle exemption<br/>Backend deployed; Android candidate"]
+  admin -->|Change global requirement with stateVersion| vehicle-policy
+  profile -->|Bootstrap policy controls photo requirement| vehicle-policy
+  web -->|Same policy for browser submission and approval| vehicle-policy
+  vehicle-policy -->|Authoritative pending submission and approval| server-members
+  vehicle-policy -->|Policy state and distinct persisted exemption| db
+  server-auth -->|Existing approved exemption permits access after ON| vehicle-policy

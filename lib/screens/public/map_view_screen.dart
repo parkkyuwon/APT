@@ -8,6 +8,7 @@ import '../../providers/app_state_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme.dart';
 import '../../widgets/slot_dialog.dart';
+import 'indoor_position_screen.dart';
 
 /// 평면도 이미지의 실제 픽셀 비율(가로/세로). 마커 좌표 정확도 유지를 위해 사용.
 const Map<String, double> _floorAspectRatio = {
@@ -28,6 +29,13 @@ class MapViewScreen extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('지도 보기'),
+          actions: [
+            IconButton(
+                tooltip: '지하 내 위치',
+                icon: const Icon(Icons.my_location),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const IndoorPositionScreen())))
+          ],
           bottom: const TabBar(
             tabs: [
               Tab(text: 'B1'),
@@ -105,7 +113,10 @@ class _FloorMapState extends State<_FloorMap> {
       switch (result.action) {
         case SlotDialogAction.park:
           if (result.detail != null) {
-            await app.upsertSlotDetail(slotId: slot.id, detail: result.detail!);
+            await app.upsertSlotDetail(
+                slotId: slot.id,
+                detail: result.detail!,
+                callAllowed: result.callAllowed);
           }
           break;
         case SlotDialogAction.checkout:
@@ -148,7 +159,7 @@ class _FloorMapState extends State<_FloorMap> {
 
     return ColoredBox(
       color: Colors.white,
-      child: Center(
+      child: SizedBox.expand(
         child: InteractiveViewer(
           transformationController: _viewerCtrl,
           panEnabled: true,
@@ -156,7 +167,8 @@ class _FloorMapState extends State<_FloorMap> {
           minScale: 0.8,
           maxScale: 6.0,
           boundaryMargin: const EdgeInsets.all(80),
-          child: AspectRatio(
+          child: Center(
+              child: AspectRatio(
             aspectRatio: aspectRatio,
             child: LayoutBuilder(
               builder: (ctx, c) {
@@ -164,7 +176,7 @@ class _FloorMapState extends State<_FloorMap> {
                   children: [
                     Positioned.fill(
                       child: Image.asset(
-                        'assets/images/${widget.floorCode}.png',
+                        'assets/images/${widget.floorCode}-simplified.png',
                         fit: BoxFit.fill,
                       ),
                     ),
@@ -187,7 +199,7 @@ class _FloorMapState extends State<_FloorMap> {
                 );
               },
             ),
-          ),
+          )),
         ),
       ),
     );
@@ -302,5 +314,4 @@ class _MapMarker extends StatelessWidget {
       ),
     );
   }
-
 }

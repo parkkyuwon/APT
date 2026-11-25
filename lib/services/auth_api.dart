@@ -45,11 +45,11 @@ class AuthApi {
         data: {'action': 'logout'},
       );
       await _client.requireOk(res);
-      await _client.clearSession();
     } on DioException catch (e) {
-      // 로그아웃은 실패해도 로컬 상태는 정리
-      await _client.clearSession();
       _client.rethrowAsApp(e);
+    } finally {
+      // 서버 거절(ApiException)과 네트워크 오류에도 로컬 세션을 제거한다.
+      await _client.clearSession();
     }
   }
 }

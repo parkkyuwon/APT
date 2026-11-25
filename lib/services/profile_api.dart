@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../core/api_client.dart';
 import '../core/json_utils.dart';
+import '../core/plate_recognition.dart';
 import '../models/user.dart';
 
 /// /api/profile — 프로필 조회/수정/동의/탈퇴.
@@ -24,23 +25,30 @@ class ProfileApi {
     }
   }
 
-  /// POST /api/profile — 닉네임/차량번호/전화번호(+선택 차량사진) 수정
+  /// POST /api/profile — 차량번호와 번호판 사진/OCR 후보 제출.
   Future<AppUser> updateProfile({
     required String nickname,
     required String vehicleNumber,
-    required String phoneNumber,
     String? vehiclePhotoBase64,
+    List<String>? ocrCandidates,
     String? googleCredential,
   }) async {
+    if (nickname.trim().isEmpty || nickname.trim().length > 30) {
+      throw ArgumentError('닉네임을 1~30자로 입력해 주세요.');
+    }
+    if (!isSinglePlate(vehicleNumber)) {
+      throw ArgumentError('차량번호 한 개만 정확히 입력해 주세요.');
+    }
     try {
       final payload = <String, dynamic>{
-        'nickname': nickname,
+        'nickname': nickname.trim(),
         'vehicleNumber': vehicleNumber,
-        'phoneNumber': phoneNumber,
+        if (ocrCandidates != null) 'ocrCandidates': ocrCandidates,
         if (vehiclePhotoBase64 != null) 'vehiclePhoto': vehiclePhotoBase64,
         if (googleCredential != null) 'googleCredential': googleCredential,
       };
-      final res = await _client.dio.post<dynamic>('/api/profile', data: payload);
+      final res =
+          await _client.dio.post<dynamic>('/api/profile', data: payload);
       final body = await _client.requireOk(res);
       final profile = asMapOrNull(body['profile']);
       if (profile == null) {
@@ -53,7 +61,7 @@ class ProfileApi {
   }
 
   /// POST /api/profile { action: "consent", version } — 개인정보 동의 저장
-  Future<void> recordConsent({String version = '1.0'}) async {
+  Future<void> recordConsent({String version = '1.3'}) async {
     try {
       final res = await _client.dio.post<dynamic>(
         '/api/profile',

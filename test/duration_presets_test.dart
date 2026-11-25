@@ -40,18 +40,22 @@ void main() {
     });
     test('formatDurationMinutes 왕복', () {
       for (final m in [30, 60, 90, 120, 150, 180, 240]) {
-        expect(parseDurationLabel(formatDurationMinutes(m)), m, reason: '$m 분 왕복');
+        expect(parseDurationLabel(formatDurationMinutes(m)), m,
+            reason: '$m 분 왕복');
       }
     });
   });
 
   group('durationPresets', () {
-    test('선택하세요 + 24개 (30분 단위 12시간)', () {
+    test('선택하세요 + 28개 (30분 단위 14시간)', () {
       final list = durationPresets;
-      expect(list.length, 25);
+      expect(list.length, 29);
       expect(list.first.minutes, 0);
       expect(list.first.label, '선택하세요');
-      expect(list.last.minutes, 720); // 12시간
+      expect(list.last.minutes, 840); // 14시간
+      // 모든 충전기의 표준 시간이 실제 선택 항목에 있어야 한다.
+      expect(list.map((preset) => preset.minutes),
+          containsAll(chargerStandardMinutes.values.toSet()));
     });
   });
 

@@ -5,6 +5,8 @@ import 'parking_slot.dart';
 /// /api/state 응답의 state 필드.
 class AppState {
   AppState({
+    this.stateVersion = 0,
+    this.vehicleVerificationRequired = true,
     required this.adEnabled,
     required this.maintenanceMode,
     required this.chatRetentionDays,
@@ -19,6 +21,8 @@ class AppState {
     this.beaconPositions = const {},
   });
 
+  final int stateVersion;
+  final bool vehicleVerificationRequired;
   final bool adEnabled;
   final bool maintenanceMode;
   final int chatRetentionDays;
@@ -29,6 +33,7 @@ class AppState {
   final Map<String, SlotDetail> slotDetails;
   final Map<String, String> slotImages;
   final Map<String, SlotPosition> slotMapPositions;
+
   /// 비콘 안정 식별자 → 슬롯 ID. 관리자가 비콘 스캔 화면에서 매핑하면
   /// 향후 사용자 폰이 같은 비콘을 감지했을 때 해당 슬롯을 자동 식별 가능.
   /// (구버전 호환용 — 신규 데이터는 [beaconPositions] 사용)
@@ -66,9 +71,8 @@ class AppState {
       slots.addAll(_generateDefaultSlots(counts: counts));
     } else {
       rawSlots.forEach((typeId, list) {
-        slots[asStr(typeId)] = asListOfMaps(list)
-            .map((m) => ParkingSlot.fromJson(m))
-            .toList();
+        slots[asStr(typeId)] =
+            asListOfMaps(list).map((m) => ParkingSlot.fromJson(m)).toList();
       });
     }
 
@@ -107,6 +111,8 @@ class AppState {
     });
 
     return AppState(
+      stateVersion: asInt(json['stateVersion'], 0),
+      vehicleVerificationRequired: json['vehicleVerificationRequired'] != false,
       adEnabled: json['adEnabled'] != false,
       maintenanceMode: asBool(json['maintenanceMode']),
       chatRetentionDays: asInt(json['chatRetentionDays'], 30),
@@ -124,7 +130,8 @@ class AppState {
     );
   }
 
-  static Map<String, List<ParkingSlot>> _generateDefaultSlots({Map<String, int>? counts}) {
+  static Map<String, List<ParkingSlot>> _generateDefaultSlots(
+      {Map<String, int>? counts}) {
     final c = counts ?? {for (final t in chargerTypes) t.id: t.defaultCount};
     final out = <String, List<ParkingSlot>>{};
     for (final t in chargerTypes) {
@@ -153,6 +160,8 @@ class AppState {
   /// 영속 캐시(StateCache) 직렬화용. fromJson 과 대응.
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
+      'stateVersion': stateVersion,
+      'vehicleVerificationRequired': vehicleVerificationRequired,
       'adEnabled': adEnabled,
       'maintenanceMode': maintenanceMode,
       'chatRetentionDays': chatRetentionDays,
@@ -167,8 +176,7 @@ class AppState {
       'slotMapPositions':
           slotMapPositions.map((k, p) => MapEntry(k, p.toJson())),
       'beaconMappings': beaconMappings,
-      'beaconPositions':
-          beaconPositions.map((k, p) => MapEntry(k, p.toJson())),
+      'beaconPositions': beaconPositions.map((k, p) => MapEntry(k, p.toJson())),
     };
   }
 }
@@ -186,7 +194,10 @@ class BeaconPosition {
   final double y;
 
   factory BeaconPosition.fromJson(Map<String, dynamic> json) => BeaconPosition(
-        floor: () { final f = asStr(json['floor']); return f.isEmpty ? 'B1' : f; }(),
+        floor: () {
+          final f = asStr(json['floor']);
+          return f.isEmpty ? 'B1' : f;
+        }(),
         x: asDouble(json['x']),
         y: asDouble(json['y']),
       );

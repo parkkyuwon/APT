@@ -1,13 +1,47 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/app_state.dart';
+import '../../core/bluetooth_permissions.dart';
 import '../../providers/app_state_provider.dart';
 import 'beacon_position_editor.dart';
+import 'indoor_survey_screen.dart';
+import '../../providers/auth_provider.dart';
+
+/// Android BLE 스캔 모드별 사용자 표시 라벨.
+String scanModeLabel(AndroidScanMode m) {
+  switch (m) {
+    case AndroidScanMode.opportunistic:
+      return 'Passive';
+    case AndroidScanMode.lowPower:
+      return 'LowPower';
+    case AndroidScanMode.balanced:
+      return 'Balanced';
+    case AndroidScanMode.lowLatency:
+      return 'Active';
+  }
+  return m.toString();
+}
+
+/// Android BLE 스캔 모드별 한 줄 설명.
+String scanModeDescription(AndroidScanMode m) {
+  switch (m) {
+    case AndroidScanMode.opportunistic:
+      return '다른 앱이 스캔할 때만 결과 수신. 단독 사용 시 검출이 거의 없음.';
+    case AndroidScanMode.lowPower:
+      return '배터리 절약. 검출 지연 큼.';
+    case AndroidScanMode.balanced:
+      return '검출과 전력 균형.';
+    case AndroidScanMode.lowLatency:
+      return '가장 빠른 검출. 배터리 소모 큼. (기본)';
+  }
+  return '';
+}
 
 /// 관리자 콘솔 — BLE 비콘 스캔.
 ///
@@ -27,6 +61,7 @@ class _ConsoleBeaconScanState extends State<ConsoleBeaconScan> {
   bool _isScanning = false;
   String? _error;
   bool _bluetoothOn = false;
+  AndroidScanMode _scanMode = AndroidScanMode.lowLatency;
 
   @override
   void initState() {
@@ -55,50 +90,29 @@ class _ConsoleBeaconScanState extends State<ConsoleBeaconScan> {
   }
 
   Future<bool> _ensurePermissions() async {
-    // Android 12+ 는 BLUETOOTH_SCAN(=근처 기기), 이하 버전은 LOCATION + BLUETOOTH 그룹 필요.
-    final required = <Permission>[
-      Permission.bluetoothScan,
-      Permission.bluetoothConnect,
-      Permission.locationWhenInUse,
-    ];
-
-    // 시스템 설정에 권한 항목이 노출되려면 앱이 한 번이라도 명시적으로 요청한 이력이
-    // 필요한 기기가 있다. 영구 거부 검사 전에 우선 request() 를 강제 호출해
-    // 항목이 노출되도록 한다.
-    final results = await required.request();
-
+    final platform = defaultTargetPlatform;
+    final sdkInt =
+        platform == TargetPlatform.android ? await queryAndroidSdkInt() : null;
     if (!mounted) return false;
-
-    final btScan = results[Permission.bluetoothScan];
-    final btConnect = results[Permission.bluetoothConnect];
-    final loc = results[Permission.locationWhenInUse];
-
-    bool isOk(PermissionStatus? s) =>
-        s != null && (s.isGranted || s.isLimited || s.isProvisional);
-
-    // Android 12+ 는 BLUETOOTH_SCAN 묶음(=근처 기기) 만 허용돼 있으면 충분.
-    // permission_handler 가 OS 가 권한을 묵음 grant 한 경우 status 가 denied/restricted
-    // 로 돌아올 수 있어 isOk 가 false 인 경우라도 실제 OS 단에서 허용된 상태일 수 있다.
-    // 그래서 BT 권한만 통과되면 곧장 스캔 시도로 넘어가고, 실패 시 startScan 의
-    // catch 에서 다이얼로그를 띄우는 방식으로 안전하게 처리한다.
-    if (isOk(btScan) && isOk(btConnect)) {
+    final required = bluetoothPermissionsFor(platform, androidSdkInt: sdkInt);
+    final results = await required.request();
+    if (!mounted) return false;
+    if (bluetoothPermissionsGranted(platform, results, androidSdkInt: sdkInt)) {
       setState(() => _error = null);
       return true;
     }
-
-    // Android 11 이하 폴백: 위치 권한이 있으면 legacy BLE 스캔 가능.
-    if (isOk(loc) && (isOk(btScan) || btScan == null)) {
-      setState(() => _error = null);
-      return true;
-    }
-
-    // 권한 부족 — 무엇이 빠졌는지 사용자에게 알려준다.
     final missing = <String>[];
-    if (!isOk(btScan) || !isOk(btConnect)) {
-      missing.add('근처 기기 (블루투스 검색)');
-    }
-    if (!isOk(loc) && !isOk(btScan)) {
-      missing.add('위치 (Android 11 이하만 필요)');
+    if (platform == TargetPlatform.iOS) {
+      missing.add('블루투스');
+    } else {
+      if (required.contains(Permission.bluetoothScan) &&
+          (results[Permission.bluetoothScan]?.isGranted != true ||
+              results[Permission.bluetoothConnect]?.isGranted != true)) {
+        missing.add('근처 기기 (블루투스 검색)');
+      }
+      if (results[Permission.locationWhenInUse]?.isGranted != true) {
+        missing.add('위치');
+      }
     }
     return _promptOpenSettings(missing);
   }
@@ -115,17 +129,24 @@ class _ConsoleBeaconScanState extends State<ConsoleBeaconScan> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('$list 권한이 필요합니다.', style: const TextStyle(fontWeight: FontWeight.w600)),
+              Text('$list 권한이 필요합니다.',
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               const Text('"설정 열기" 를 누른 뒤 시스템 화면에서 다음 순서로 허용해 주세요:'),
               const SizedBox(height: 8),
-              const Text('① "권한 (Permissions)" 메뉴 탭'),
-              const Text('② "근처 기기 (Nearby devices)" → "허용"'),
-              const Text('   • Android 12+ 의 블루투스 검색 권한 묶음입니다.'),
-              const Text('③ Android 11 이하 기기는 "위치" 권한도 함께 허용'),
+              if (defaultTargetPlatform == TargetPlatform.iOS)
+                const Text('앱 설정에서 "Bluetooth"를 허용해 주세요.')
+              else ...[
+                const Text('① "권한" 메뉴를 엽니다.'),
+                const Text('② Android 12 이상은 "근처 기기"를 허용합니다.'),
+                const Text('③ "위치"를 앱 사용 중 허용하고 정확한 위치를 켭니다.'),
+                const Text('비콘 검색과 지도상의 현위치 표시를 위해 필요합니다.'),
+              ],
               const SizedBox(height: 8),
-              const Text('※ Samsung 기기는 권한 메뉴에서 "더보기 / 모두 보기" 를 눌러야 항목이 노출되기도 합니다.',
-                  style: TextStyle(fontSize: 12, color: Colors.black54)),
+              if (defaultTargetPlatform == TargetPlatform.android)
+                const Text(
+                    '※ Samsung 기기는 권한 메뉴에서 "더보기 / 모두 보기" 를 눌러야 항목이 노출되기도 합니다.',
+                    style: TextStyle(fontSize: 12, color: Colors.black54)),
             ],
           ),
         ),
@@ -154,20 +175,36 @@ class _ConsoleBeaconScanState extends State<ConsoleBeaconScan> {
   Future<void> _startScan() async {
     setState(() => _error = null);
     final granted = await _ensurePermissions();
-    if (!granted) return;
+    if (!mounted || !granted) return;
     if (!await FlutterBluePlus.isSupported) {
+      if (!mounted) return;
       setState(() => _error = '이 기기는 BLE 를 지원하지 않습니다.');
       return;
     }
-    final state = await FlutterBluePlus.adapterState.first;
+    if (!mounted) return;
+    BluetoothAdapterState state;
+    try {
+      state = await FlutterBluePlus.adapterState
+          .where((value) => value != BluetoothAdapterState.unknown)
+          .first
+          .timeout(const Duration(seconds: 10));
+    } catch (e) {
+      if (mounted) setState(() => _error = '블루투스 상태 확인 실패: $e');
+      return;
+    }
+    if (!mounted) return;
     if (state != BluetoothAdapterState.on) {
       setState(() {
         _error = '블루투스가 꺼져 있습니다. 시스템 설정에서 켜주세요.';
         _bluetoothOn = false;
       });
-      try {
-        unawaited(FlutterBluePlus.turnOn());
-      } catch (_) {}
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        try {
+          await FlutterBluePlus.turnOn();
+        } catch (_) {
+          // 시스템 설정에서 사용자가 직접 활성화할 수 있다.
+        }
+      }
       return;
     }
 
@@ -180,7 +217,9 @@ class _ConsoleBeaconScanState extends State<ConsoleBeaconScan> {
       for (final r in results) {
         final id = r.device.remoteId.str;
         final prev = _devices[id];
-        if (prev == null || prev.rssi != r.rssi || prev.timeStamp != r.timeStamp) {
+        if (prev == null ||
+            prev.rssi != r.rssi ||
+            prev.timeStamp != r.timeStamp) {
           _devices[id] = r;
           changed = true;
         }
@@ -190,8 +229,9 @@ class _ConsoleBeaconScanState extends State<ConsoleBeaconScan> {
 
     try {
       await FlutterBluePlus.startScan(
+        androidUsesFineLocation: true,
         timeout: const Duration(seconds: 15),
-        androidScanMode: AndroidScanMode.lowLatency,
+        androidScanMode: _scanMode,
       );
     } catch (e) {
       if (!mounted) return;
@@ -229,7 +269,8 @@ class _ConsoleBeaconScanState extends State<ConsoleBeaconScan> {
     final minor = (apple[20] << 8) | apple[21];
     final txByte = apple[22];
     final txPower = txByte > 127 ? txByte - 256 : txByte;
-    return _IBeaconData(uuid: uuid, major: major, minor: minor, txPower: txPower);
+    return _IBeaconData(
+        uuid: uuid, major: major, minor: minor, txPower: txPower);
   }
 
   String _formatUuid(List<int> bytes) {
@@ -285,8 +326,7 @@ class _ConsoleBeaconScanState extends State<ConsoleBeaconScan> {
 
   @override
   Widget build(BuildContext context) {
-    final positions =
-        context.watch<AppStateProvider>().state.beaconPositions;
+    final positions = context.watch<AppStateProvider>().state.beaconPositions;
     final sorted = _devices.values.toList()
       ..sort((a, b) => b.rssi.compareTo(a.rssi));
 
@@ -294,6 +334,18 @@ class _ConsoleBeaconScanState extends State<ConsoleBeaconScan> {
       appBar: AppBar(
         title: const Text('BLE 비콘 스캔'),
         actions: [
+          if (context.read<AuthProvider>().isAdmin)
+            IconButton(
+                tooltip: '측정 지점 등록',
+                icon: const Icon(Icons.add_location_alt),
+                onPressed: () async {
+                  final scope = context.read<AuthProvider>().session?.email;
+                  if (scope == null) return;
+                  await _stopScan();
+                if (!context.mounted) return;
+                  await Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => IndoorSurveyScreen(accountScope: scope)));
+                }),
           IconButton(
             tooltip: '초기화',
             onPressed: () => setState(_devices.clear),
@@ -305,23 +357,91 @@ class _ConsoleBeaconScanState extends State<ConsoleBeaconScan> {
         children: [
           Padding(
             padding: const EdgeInsets.all(12),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(_bluetoothOn ? Icons.bluetooth : Icons.bluetooth_disabled,
-                    size: 18, color: _bluetoothOn ? Colors.blue : Colors.grey),
-                const SizedBox(width: 6),
-                Text(_bluetoothOn ? '블루투스 ON' : '블루투스 OFF',
-                    style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                const Spacer(),
-                Text(_isScanning ? '스캔 중…' : '대기',
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: _isScanning ? Colors.blue : Colors.black54)),
-                const SizedBox(width: 8),
-                FilledButton.icon(
-                  onPressed: _isScanning ? _stopScan : _startScan,
-                  icon: Icon(_isScanning ? Icons.stop : Icons.search),
-                  label: Text(_isScanning ? '중지' : '스캔 시작'),
+                Row(
+                  children: [
+                    Icon(
+                        _bluetoothOn
+                            ? Icons.bluetooth
+                            : Icons.bluetooth_disabled,
+                        size: 18,
+                        color: _bluetoothOn ? Colors.blue : Colors.grey),
+                    const SizedBox(width: 6),
+                    Text(_bluetoothOn ? '블루투스 ON' : '블루투스 OFF',
+                        style: const TextStyle(
+                            fontSize: 12, color: Colors.black54)),
+                    const Spacer(),
+                    Text(_isScanning ? '스캔 중…' : '대기',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: _isScanning ? Colors.blue : Colors.black54)),
+                    const SizedBox(width: 8),
+                    FilledButton.icon(
+                      onPressed: _isScanning ? _stopScan : _startScan,
+                      icon: Icon(_isScanning ? Icons.stop : Icons.search),
+                      label: Text(_isScanning ? '중지' : '스캔 시작'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  '스캔 모드 (Android 만 적용)',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black54),
+                ),
+                const SizedBox(height: 6),
+                SizedBox(
+                  width: double.infinity,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SegmentedButton<AndroidScanMode>(
+                      showSelectedIcon: false,
+                      style: ButtonStyle(
+                        visualDensity: VisualDensity.compact,
+                        textStyle: WidgetStateProperty.all(
+                          const TextStyle(fontSize: 11),
+                        ),
+                      ),
+                      segments: const [
+                        ButtonSegment<AndroidScanMode>(
+                          value: AndroidScanMode.opportunistic,
+                          label: Text('Passive'),
+                        ),
+                        ButtonSegment<AndroidScanMode>(
+                          value: AndroidScanMode.lowPower,
+                          label: Text('LowPower'),
+                        ),
+                        ButtonSegment<AndroidScanMode>(
+                          value: AndroidScanMode.balanced,
+                          label: Text('Balanced'),
+                        ),
+                        ButtonSegment<AndroidScanMode>(
+                          value: AndroidScanMode.lowLatency,
+                          label: Text('Active'),
+                        ),
+                      ],
+                      selected: <AndroidScanMode>{_scanMode},
+                      onSelectionChanged: _isScanning
+                          ? null
+                          : (Set<AndroidScanMode> selected) {
+                              setState(() => _scanMode = selected.first);
+                            },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _isScanning
+                      ? '${scanModeDescription(_scanMode)} (스캔 중지 후 변경 가능)'
+                      : scanModeDescription(_scanMode),
+                  style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.black54,
+                      fontStyle: FontStyle.italic),
                 ),
               ],
             ),
@@ -331,17 +451,20 @@ class _ConsoleBeaconScanState extends State<ConsoleBeaconScan> {
               width: double.infinity,
               color: Colors.red.shade50,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+              child: Text(_error!,
+                  style: const TextStyle(color: Colors.red, fontSize: 12)),
             ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
                 Text('감지된 기기 ${sorted.length}개',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600)),
                 const Spacer(),
                 Text('RSSI 높을수록 가까움',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                    style:
+                        TextStyle(fontSize: 11, color: Colors.grey.shade600)),
               ],
             ),
           ),
@@ -367,13 +490,11 @@ class _ConsoleBeaconScanState extends State<ConsoleBeaconScan> {
                         kind: _signalKind(r),
                         name: _name(r),
                         rssiColor: _rssiColor(r.rssi),
-                        manufacturerHex: r
-                                .advertisementData
-                                .manufacturerData
-                                .entries
-                                .isEmpty
-                            ? null
-                            : _bytesToHex(r.advertisementData.manufacturerData.values.first),
+                        manufacturerHex:
+                            r.advertisementData.manufacturerData.entries.isEmpty
+                                ? null
+                                : _bytesToHex(r.advertisementData
+                                    .manufacturerData.values.first),
                         iBeacon: iBeacon,
                         stableId: stableId,
                         position: position,
@@ -435,7 +556,9 @@ class _DeviceTile extends StatelessWidget {
             width: 40,
             child: Text(key,
                 style: const TextStyle(
-                    fontSize: 10, color: Colors.indigo, fontWeight: FontWeight.w600)),
+                    fontSize: 10,
+                    color: Colors.indigo,
+                    fontWeight: FontWeight.w600)),
           ),
           Expanded(
             child: Text(
@@ -462,7 +585,8 @@ class _DeviceTile extends StatelessWidget {
         children: [
           Expanded(
             child: Text(name,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                style:
+                    const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                 overflow: TextOverflow.ellipsis),
           ),
           Container(
@@ -473,7 +597,9 @@ class _DeviceTile extends StatelessWidget {
             ),
             child: Text('${result.rssi} dBm',
                 style: TextStyle(
-                    fontSize: 11, color: rssiColor, fontWeight: FontWeight.w700)),
+                    fontSize: 11,
+                    color: rssiColor,
+                    fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -485,18 +611,21 @@ class _DeviceTile extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: Colors.blueGrey.shade100,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(kind,
-                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
+                      style: const TextStyle(
+                          fontSize: 10, fontWeight: FontWeight.w600)),
                 ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(result.device.remoteId.str,
-                      style: const TextStyle(fontSize: 11, color: Colors.black54),
+                      style:
+                          const TextStyle(fontSize: 11, color: Colors.black54),
                       overflow: TextOverflow.ellipsis),
                 ),
               ],
@@ -528,8 +657,10 @@ class _DeviceTile extends StatelessWidget {
               if (ad.serviceUuids.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 2),
-                  child: Text('Services: ${ad.serviceUuids.map((u) => u.str).join(", ")}',
-                      style: const TextStyle(fontSize: 10, color: Colors.black54),
+                  child: Text(
+                      'Services: ${ad.serviceUuids.map((u) => u.str).join(", ")}',
+                      style:
+                          const TextStyle(fontSize: 10, color: Colors.black54),
                       overflow: TextOverflow.ellipsis),
                 ),
               if (manufacturerHex != null)
@@ -537,7 +668,9 @@ class _DeviceTile extends StatelessWidget {
                   padding: const EdgeInsets.only(top: 2),
                   child: Text('Mfr: $manufacturerHex',
                       style: const TextStyle(
-                          fontSize: 10, color: Colors.black54, fontFamily: 'monospace'),
+                          fontSize: 10,
+                          color: Colors.black54,
+                          fontFamily: 'monospace'),
                       overflow: TextOverflow.ellipsis),
                 ),
             ],
@@ -547,7 +680,8 @@ class _DeviceTile extends StatelessWidget {
                 children: [
                   if (position != null) ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.purple.shade100,
                         borderRadius: BorderRadius.circular(4),
@@ -555,7 +689,8 @@ class _DeviceTile extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.place, size: 12, color: Colors.purple),
+                          const Icon(Icons.place,
+                              size: 12, color: Colors.purple),
                           const SizedBox(width: 3),
                           Text(
                             '${position!.floor} ${position!.x.toStringAsFixed(1)}%, ${position!.y.toStringAsFixed(1)}%',
@@ -581,7 +716,8 @@ class _DeviceTile extends StatelessWidget {
                     OutlinedButton.icon(
                       onPressed: onMap,
                       icon: const Icon(Icons.place_outlined, size: 14),
-                      label: const Text('지도에 위치 지정', style: TextStyle(fontSize: 11)),
+                      label: const Text('비콘 설치 위치 지정',
+                          style: TextStyle(fontSize: 11)),
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size(0, 28),
                         padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -596,4 +732,3 @@ class _DeviceTile extends StatelessWidget {
     );
   }
 }
-

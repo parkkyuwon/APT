@@ -1,6 +1,7 @@
 # Miscellaneous
 *.class
 *.log
+android/fastlane/firebase-production.defines.json
 *.pyc
 *.swp
 .DS_Store

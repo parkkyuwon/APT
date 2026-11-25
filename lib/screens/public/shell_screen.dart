@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/deep_link.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/connectivity_provider.dart';
+import '../../services/push_notifications.dart';
+import '../../services/indoor_access_controller.dart';
+import 'indoor_position_screen.dart';
+import 'home_area_settings_screen.dart';
 import '../admin/admin_dashboard.dart';
 import 'chat_screen.dart';
+import 'board_screen.dart';
+import 'charger_reports_screen.dart';
 import 'guide_screen.dart';
 import 'highlight_screen.dart';
 import 'home_screen.dart';
 import 'map_view_screen.dart';
 import 'mypage_screen.dart';
 import 'parking_list_screen.dart';
+import 'departure_requests_screen.dart';
 
 /// 승인된 사용자가 진입하는 메인 쉘. 하단 5탭 네비게이션.
 class ShellScreen extends StatefulWidget {
@@ -22,6 +30,68 @@ class ShellScreen extends StatefulWidget {
 
 class _ShellScreenState extends State<ShellScreen> {
   int _index = 0;
+  PushNotifications? _push;
+  IndoorAccessController? _indoor;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final push = context.read<PushNotifications>();
+    final indoor = context.read<IndoorAccessController>();
+    if (_indoor != indoor) {
+      _indoor?.removeListener(_onIndoor);
+      _indoor = indoor;
+      indoor.addListener(_onIndoor);
+      _onIndoor();
+    }
+    if (_push == push) return;
+    _push?.removeListener(_onPush);
+    _push = push;
+    push.addListener(_onPush);
+    _onPush();
+  }
+
+  void _onIndoor() {
+    if (!mounted || _indoor?.pendingVisit == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final shouldOpen = await _indoor!.takeEntry();
+      if (mounted && shouldOpen) {
+        await Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const IndoorPositionScreen()));
+      }
+    });
+  }
+
+  void _onPush() {
+    if (!mounted || _push?.pendingRequestId == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final id = _push?.takePendingRequest();
+      if (id != null) {
+        Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => DepartureRequestsScreen(initialRequestId: id)));
+      }
+    });
+  }
+
+  void _onDeepLink() {
+    if (mounted && _index != 0) setState(() => _index = 0);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    DeepLink.addListener(_onDeepLink);
+  }
+
+  @override
+  void dispose() {
+    DeepLink.removeListener(_onDeepLink);
+    _push?.removeListener(_onPush);
+    _indoor?.removeListener(_onIndoor);
+    super.dispose();
+  }
 
   static const _screens = <Widget>[
     HomeScreen(),
@@ -70,7 +140,8 @@ class _ShellScreenState extends State<ShellScreen> {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.map_outlined), label: '홈'),
           NavigationDestination(icon: Icon(Icons.list_alt), label: '목록'),
-          NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: '대화방'),
+          NavigationDestination(
+              icon: Icon(Icons.chat_bubble_outline), label: '대화방'),
           NavigationDestination(icon: Icon(Icons.person_outline), label: '내정보'),
           NavigationDestination(icon: Icon(Icons.more_horiz), label: '더보기'),
         ],
@@ -86,9 +157,35 @@ class _MoreMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     return Scaffold(
-      appBar: AppBar(title: const Text('더보기'), automaticallyImplyLeading: false),
+      appBar:
+          AppBar(title: const Text('더보기'), automaticallyImplyLeading: false),
       body: ListView(
         children: [
+          ListTile(
+            leading: const Icon(Icons.my_location),
+            title: const Text('지하 내 위치'),
+            subtitle: const Text('관리자가 배포한 비콘 정보로 위치 찾기'),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const IndoorPositionScreen())),
+          ),
+          if (auth.session != null)
+            ListTile(
+              leading: const Icon(Icons.radar),
+              title: const Text('집 주변 지하 위치 안내'),
+              subtitle: const Text('주변 반경 설정 · 위치 신호 저하 시 알림'),
+              onTap: () {
+                final scope = auth.session!.email;
+                final access = context.read<IndoorAccessController>();
+                Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => HomeAreaSettingsScreen(
+                        accountScope: scope,
+                        serviceEnabled: () =>
+                            access.enabled &&
+                            auth.session?.email == scope &&
+                            (auth.stage == AuthStage.approved ||
+                                auth.stage == AuthStage.admin))));
+              },
+            ),
           ListTile(
             leading: const Icon(Icons.map_outlined),
             title: const Text('지도 보기'),
@@ -118,6 +215,37 @@ class _MoreMenu extends StatelessWidget {
             },
           ),
           const Divider(),
+          ListTile(
+            leading: const Icon(Icons.forum_outlined),
+            title: const Text('아파트 게시판'),
+            subtitle: const Text('단지의 이슈와 의견을 나눕니다.'),
+            onTap: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const BoardScreen())),
+          ),
+          ListTile(
+            leading: const Icon(Icons.report_problem_outlined),
+            title: const Text('충전기 고장 신고'),
+            subtitle: const Text('사진과 함께 신고하고 처리 상태를 확인합니다.'),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const ChargerReportsScreen())),
+          ),
+          ListTile(
+            leading: const Icon(Icons.notifications_active_outlined),
+            title: const Text('받은 출차 요청'),
+            subtitle: const Text('요청한 차량과 주차 위치 확인'),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const DepartureRequestsScreen())),
+          ),
+          Consumer<PushNotifications>(
+              builder: (_, push, __) => ListTile(
+                    leading: const Icon(Icons.notifications_outlined),
+                    title: const Text('휴대폰 출차 요청 알림'),
+                    subtitle: Text(push.status),
+                    trailing: push.configured && !push.enabled
+                        ? TextButton(
+                            onPressed: push.enable, child: const Text('알림 켜기'))
+                        : null,
+                  )),
           if (auth.isAdmin)
             ListTile(
               leading: const Icon(Icons.admin_panel_settings),

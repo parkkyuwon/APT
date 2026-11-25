@@ -12,7 +12,11 @@ import 'console_parking.dart';
 import 'console_parking_history.dart';
 import 'console_qr.dart';
 import 'console_vehicle_verify.dart';
+import 'admin_ocr_test_screen.dart';
+import '../public/charger_reports_screen.dart';
+import '../public/board_screen.dart';
 import 'map_editor_screen.dart';
+import 'indoor_survey_screen.dart';
 
 /// [console_k9r2m4x.html] — 관리자 허브 랜딩. 7개 서브 콘솔 + 지도 편집 카드.
 class AdminDashboard extends StatelessWidget {
@@ -47,6 +51,13 @@ class AdminDashboard extends StatelessWidget {
               ),
             ),
           const SizedBox(height: 8),
+          if (auth.isAdmin && auth.session != null)
+            _card(context,
+                icon: Icons.radar,
+                title: '지하 위치 · 신호 지도',
+                description: '측정 지점 반복 등록 · 비콘 위치 후보 · 공용 배포 및 이용자 사용 설정',
+                builder: (_) =>
+                    IndoorSurveyScreen(accountScope: auth.session!.email)),
           _card(
             context,
             icon: Icons.verified_user,
@@ -57,10 +68,25 @@ class AdminDashboard extends StatelessWidget {
           _card(
             context,
             icon: Icons.photo_camera,
-            title: '차량 사진 인증',
-            description: '제출된 차량 번호판 사진을 검토하고 승인 또는 거절합니다.',
+            title: '차량 OCR 심사',
+            description: '번호판 OCR 비교 결과와 제출 사진을 검토합니다.',
             builder: (_) => const ConsoleVehicleVerify(),
           ),
+          _card(context,
+              icon: Icons.document_scanner_outlined,
+              title: 'OCR 테스트',
+              description: '회원정보 변경 없이 사진의 차량번호를 비교합니다.',
+              builder: (_) => const AdminOcrTestScreen()),
+          _card(context,
+              icon: Icons.report_problem_outlined,
+              title: '충전기 고장 신고',
+              description: '신고 사진과 내용을 확인하고 처리 상태를 변경합니다.',
+              builder: (_) => const ChargerReportsScreen()),
+          _card(context,
+              icon: Icons.forum_outlined,
+              title: '아파트 게시판',
+              description: '단지 이슈 게시물을 조회하고 관리합니다.',
+              builder: (_) => const BoardScreen()),
           _card(
             context,
             icon: Icons.settings,
@@ -146,7 +172,8 @@ class AdminDashboard extends StatelessWidget {
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(description, style: const TextStyle(fontSize: 12)),
         trailing: const Icon(Icons.chevron_right),
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: builder)),
+        onTap: () =>
+            Navigator.of(context).push(MaterialPageRoute(builder: builder)),
       ),
     );
   }

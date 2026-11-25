@@ -27,7 +27,10 @@ class SlotDetail {
     this.chargeDuration = '',
     this.ownerEmail = '',
     this.ownerNickname = '',
+    this.ownerInstanceAt = '',
     this.parkingBlocked = false,
+    this.parkingRegistrationId = '',
+    this.callAllowed = false,
   });
 
   final String vehicleNumber;
@@ -38,15 +41,28 @@ class SlotDetail {
   final String chargeDuration;
   final String ownerEmail;
   final String ownerNickname;
-  final bool parkingBlocked;
 
-  bool get isOccupied =>
-      !parkingBlocked &&
-      (vehicleNumber.isNotEmpty ||
-          startTime.isNotEmpty ||
-          departureTime.isNotEmpty ||
-          chargeDuration.isNotEmpty ||
-          ownerEmail.isNotEmpty);
+  /// Server-issued account instance; preserve it when editing parked vehicles.
+  final String ownerInstanceAt;
+  final bool parkingBlocked;
+  final String parkingRegistrationId;
+  final bool callAllowed;
+
+  /// A blocked slot may still contain a registered vehicle.
+  bool get hasParkingRecord =>
+      vehicleNumber.isNotEmpty ||
+      startTime.isNotEmpty ||
+      departureTime.isNotEmpty ||
+      chargeDuration.isNotEmpty ||
+      ownerEmail.isNotEmpty;
+
+  bool get isOccupied => !parkingBlocked && hasParkingRecord;
+
+  /// Names are display labels; ownership is determined only by email.
+  bool isOwnedBy(String email) =>
+      email.trim().isNotEmpty &&
+      ownerEmail.trim().isNotEmpty &&
+      ownerEmail.trim().toLowerCase() == email.trim().toLowerCase();
 
   factory SlotDetail.fromJson(Map<String, dynamic> json) {
     return SlotDetail(
@@ -58,7 +74,10 @@ class SlotDetail {
       chargeDuration: asStr(json['chargeDuration']),
       ownerEmail: asStr(json['ownerEmail']),
       ownerNickname: asStr(json['ownerNickname']),
+      ownerInstanceAt: asStr(json['ownerInstanceAt']),
       parkingBlocked: asBool(json['parkingBlocked']),
+      parkingRegistrationId: asStr(json['parkingRegistrationId']),
+      callAllowed: asBool(json['callAllowed']),
     );
   }
 
@@ -72,7 +91,11 @@ class SlotDetail {
       if (chargeDuration.isNotEmpty) 'chargeDuration': chargeDuration,
       if (ownerEmail.isNotEmpty) 'ownerEmail': ownerEmail,
       if (ownerNickname.isNotEmpty) 'ownerNickname': ownerNickname,
+      if (ownerInstanceAt.isNotEmpty) 'ownerInstanceAt': ownerInstanceAt,
       'parkingBlocked': parkingBlocked,
+      if (parkingRegistrationId.isNotEmpty)
+        'parkingRegistrationId': parkingRegistrationId,
+      'callAllowed': callAllowed,
     };
   }
 
@@ -85,7 +108,10 @@ class SlotDetail {
     String? chargeDuration,
     String? ownerEmail,
     String? ownerNickname,
+    String? ownerInstanceAt,
     bool? parkingBlocked,
+    String? parkingRegistrationId,
+    bool? callAllowed,
   }) {
     return SlotDetail(
       vehicleNumber: vehicleNumber ?? this.vehicleNumber,
@@ -96,7 +122,11 @@ class SlotDetail {
       chargeDuration: chargeDuration ?? this.chargeDuration,
       ownerEmail: ownerEmail ?? this.ownerEmail,
       ownerNickname: ownerNickname ?? this.ownerNickname,
+      ownerInstanceAt: ownerInstanceAt ?? this.ownerInstanceAt,
       parkingBlocked: parkingBlocked ?? this.parkingBlocked,
+      parkingRegistrationId:
+          parkingRegistrationId ?? this.parkingRegistrationId,
+      callAllowed: callAllowed ?? this.callAllowed,
     );
   }
 }

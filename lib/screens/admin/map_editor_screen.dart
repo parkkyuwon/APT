@@ -31,6 +31,7 @@ class MapEditorScreen extends StatefulWidget {
 class _MapEditorScreenState extends State<MapEditorScreen> {
   String? _selectedSlotId;
   Map<String, SlotPosition> _positions = {};
+  int _loadedVersion = 0;
   bool _dirty = false;
 
   @override
@@ -40,9 +41,11 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
   }
 
   void _load() {
+    if (!mounted) return;
     final app = context.read<AppStateProvider>();
     setState(() {
       _positions = Map.of(app.state.slotMapPositions);
+      _loadedVersion = app.state.stateVersion;
       _dirty = false;
     });
   }
@@ -64,8 +67,7 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
     final clampedX = pctX.clamp(0.0, 100.0).toDouble();
     final clampedY = pctY.clamp(0.0, 100.0).toDouble();
     setState(() {
-      _positions[id] =
-          SlotPosition(floor: floorCode, x: clampedX, y: clampedY);
+      _positions[id] = SlotPosition(floor: floorCode, x: clampedX, y: clampedY);
       _dirty = true;
     });
   }
@@ -78,9 +80,14 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
         _positions.map((k, v) => MapEntry(k, v.toJson()));
     try {
       await app.saveFullState(payload);
-      setState(() => _dirty = false);
+      if (!mounted) return;
+      setState(() {
+        _dirty = false;
+        _loadedVersion = app.state.stateVersion;
+      });
       messenger.showSnackBar(const SnackBar(content: Text('좌표가 저장되었습니다.')));
     } catch (e) {
+      if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(content: Text('저장 실패: $e'), backgroundColor: Colors.red),
       );
@@ -91,8 +98,11 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
     final slotDetails = <String, dynamic>{};
     s.slotDetails.forEach((id, d) => slotDetails[id] = d.toJson());
     final slots = <String, dynamic>{};
-    s.slots.forEach((k, list) => slots[k] = list.map((e) => e.toJson()).toList());
+    s.slots
+        .forEach((k, list) => slots[k] = list.map((e) => e.toJson()).toList());
     return <String, dynamic>{
+      'stateVersion': _loadedVersion,
+      'vehicleVerificationRequired': s.vehicleVerificationRequired,
       'adEnabled': s.adEnabled,
       'maintenanceMode': s.maintenanceMode,
       'chatRetentionDays': s.chatRetentionDays,
@@ -346,7 +356,7 @@ class _FloorCanvasState extends State<_FloorCanvas> {
                       widget.onCanvasTap(pctX, pctY, widget.floorCode);
                     },
                     child: Image.asset(
-                      'assets/images/${widget.floorCode}.png',
+                      'assets/images/${widget.floorCode}-simplified.png',
                       fit: BoxFit.fill,
                     ),
                   ),
@@ -416,9 +426,13 @@ class _EditorMarker extends StatelessWidget {
               decoration: BoxDecoration(
                 color: fillColor,
                 shape: BoxShape.circle,
-                border: Border.all(color: outlineColor, width: selected ? 4 : 3),
+                border:
+                    Border.all(color: outlineColor, width: selected ? 4 : 3),
                 boxShadow: const [
-                  BoxShadow(color: Colors.black54, blurRadius: 2, offset: Offset(0, 1)),
+                  BoxShadow(
+                      color: Colors.black54,
+                      blurRadius: 2,
+                      offset: Offset(0, 1)),
                 ],
               ),
               child: Text(

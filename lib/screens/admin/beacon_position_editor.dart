@@ -112,7 +112,7 @@ class _BeaconPositionEditorState extends State<BeaconPositionEditor> {
       initialIndex: _floor == 'B1' ? 0 : 1,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('비콘 위치 지정'),
+          title: const Text('비콘 설치 위치 지정'),
           bottom: TabBar(
             tabs: const [Tab(text: 'B1'), Tab(text: 'B2')],
             onTap: (i) => setState(() => _floor = i == 0 ? 'B1' : 'B2'),

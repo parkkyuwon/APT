@@ -44,7 +44,10 @@ class _ParkingListScreenState extends State<ParkingListScreen> {
       switch (result.action) {
         case SlotDialogAction.park:
           if (result.detail != null) {
-            await app.upsertSlotDetail(slotId: slot.id, detail: result.detail!);
+            await app.upsertSlotDetail(
+                slotId: slot.id,
+                detail: result.detail!,
+                callAllowed: result.callAllowed);
           }
           break;
         case SlotDialogAction.checkout:
@@ -143,8 +146,7 @@ class _ParkingListScreenState extends State<ParkingListScreen> {
                               Text(
                                 type.name,
                                 style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700),
+                                    fontSize: 16, fontWeight: FontWeight.w700),
                               ),
                               const Spacer(),
                               Container(
@@ -179,7 +181,8 @@ class _ParkingListScreenState extends State<ParkingListScreen> {
   }
 
   Widget _row(BuildContext context, ParkingSlot slot, state) {
-    final detail = state.slotDetails[slot.id] as SlotDetail? ?? const SlotDetail();
+    final detail =
+        state.slotDetails[slot.id] as SlotDetail? ?? const SlotDetail();
     final session = context.read<AuthProvider>().session;
     final custom = state.slotNames[slot.id] as String?;
     final label = custom != null && custom.isNotEmpty
@@ -199,7 +202,8 @@ class _ParkingListScreenState extends State<ParkingListScreen> {
       color = Colors.green;
     }
 
-    final elapsed = detail.isOccupied ? _elapsedSinceStart(detail.startTime) : null;
+    final elapsed =
+        detail.isOccupied ? _elapsedSinceStart(detail.startTime) : null;
 
     return InkWell(
       onTap: () => _onTap(context, slot),
@@ -217,11 +221,13 @@ class _ParkingListScreenState extends State<ParkingListScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  Text(label,
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
                   if (detail.isOccupied && detail.vehicleNumber.isNotEmpty)
                     Text(
                       vehicleFor(session, detail.vehicleNumber),
-                      style: const TextStyle(fontSize: 12, color: Colors.black54),
+                      style:
+                          const TextStyle(fontSize: 12, color: Colors.black54),
                     ),
                   if (elapsed != null)
                     Text(
@@ -231,7 +237,8 @@ class _ParkingListScreenState extends State<ParkingListScreen> {
                 ],
               ),
             ),
-            Text(status, style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+            Text(status,
+                style: TextStyle(color: color, fontWeight: FontWeight.w600)),
             const Icon(Icons.chevron_right, color: Colors.black26),
           ],
         ),

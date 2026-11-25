@@ -31,6 +31,15 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>FirebaseMessagingAutoInitEnabled</key>
+	<false/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+		<string>location</string>
+	</array>
+	<key>FlutterDeepLinkingEnabled</key>
+	<true/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -71,8 +80,18 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Choose your home area and show outdoor location for indoor navigation.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Monitor your home area in the background to offer an indoor map notification.</string>
+	<key>GOOGLE_MAPS_API_KEY</key>
+	<string>$(GOOGLE_MAPS_API_KEY)</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>주변 주차장 비콘을 검색하고 관리하기 위해 블루투스를 사용합니다.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>주차 슬롯 QR 스캔과 차량 사진 인증을 위해 카메라를 사용합니다.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>수락한 주차 차주와 앱 음성통화를 할 때 마이크를 사용합니다.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>차량 인증 사진을 업로드하기 위해 사진 라이브러리에 접근합니다.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

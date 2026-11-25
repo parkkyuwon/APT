@@ -1,0 +1,17 @@
+{
+  "duration_seconds": 70.625,
+  "scene_durations": [
+    11.25,
+    10.708333333333334,
+    12.0,
+    11.791666666666666,
+    11.208333333333334,
+    13.666666666666666
+  ],
+  "width": 1280,
+  "height": 720,
+  "fps": 24,
+  "type": "explanation animation, not device footage",
+  "narration": "Microsoft Heami Desktop ko-KR",
+  "output": "APT-EV-geofence-explainer-ko.mp4"
+}

@@ -12,3 +12,8 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# fastlane — Play Developer API 서비스 계정 키 (절대 커밋 금지)
+fastlane/play-store-credentials.json
+fastlane/report.xml
+Gemfile.lock

@@ -1,0 +1,58 @@
+{
+  "created": "2026-11-16",
+  "tool": "built-in image_gen",
+  "purpose": "User-approved simplified map application and original comparison",
+  "floors": [
+    {
+      "floor": "B1",
+      "source": {
+        "path": "assets/images/B1.png",
+        "width": 2047,
+        "height": 1877,
+        "aspectRatio": 1.0905700586041556,
+        "sha256": "387C1F6AE2B3A687A5529FB216BF59CA4DF2A20AF52E10CCA2A2A2487A299D01"
+      },
+      "preview": {
+        "path": "B1-simplified-preview.png",
+        "width": 1310,
+        "height": 1201,
+        "aspectRatio": 1.0907577019150707,
+        "sha256": "88AA9A93D9AD3E912F485A343D6F183B91D3D1D60FE48D31C74391A650354827"
+      },
+      "coordinateValidated": false,
+      "appReplacement": true,
+      "originalAssetsPreserved": true,
+      "appAsset": "assets/images/B1-simplified.png",
+      "appliedAt": "2026-11-16T07:38:20Z"
+    },
+    {
+      "floor": "B2",
+      "source": {
+        "path": "assets/images/B2.png",
+        "width": 3920,
+        "height": 2240,
+        "aspectRatio": 1.75,
+        "sha256": "6583F8E4D6A34DC81C6DDA29AD1FA2BE4B55765744EEBD75CFA9FD2E3F37823E"
+      },
+      "preview": {
+        "path": "B2-simplified-preview.png",
+        "width": 1660,
+        "height": 948,
+        "aspectRatio": 1.751054852320675,
+        "sha256": "CAE6A5FA564B1B33E2733C78879B2DB3B2770B7C2E200D4FA24764B54D3DF5E6"
+      },
+      "coordinateValidated": false,
+      "appReplacement": true,
+      "originalAssetsPreserved": true,
+      "appAsset": "assets/images/B2-simplified.png",
+      "appliedAt": "2026-11-16T07:38:20Z"
+    }
+  ],
+  "notes": [
+    "Original assets remain unchanged.",
+    "AI-generated stair motifs and building cores are schematic, not surveyed topology.",
+    "Percent-based app markers require per-marker alignment validation.",
+    "Preview contains no invented building numbers or directional arrows.",
+    "User explicitly approved application; app references new sibling assets, originals preserved."
+  ]
+}

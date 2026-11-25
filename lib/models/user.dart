@@ -11,7 +11,6 @@ class AppUser {
     required this.status,
     required this.role,
     required this.vehicleNumber,
-    required this.phoneNumber,
     required this.profileComplete,
     required this.vehicleVerified,
     this.createdAt,
@@ -20,6 +19,12 @@ class AppUser {
     this.withdrawnAt,
     this.consentAt,
     this.vehiclePhoto = '',
+    this.lastUsedAt,
+    this.activeParking = false,
+    this.vehicleSubmissionVersion = 0,
+    this.ocrMatched = false,
+    this.vehicleVerificationRequired = true,
+    this.vehicleVerificationExempt = false,
   });
 
   final String email;
@@ -29,7 +34,6 @@ class AppUser {
   final AuthStatus status;
   final String role;
   final String vehicleNumber;
-  final String phoneNumber;
   final bool profileComplete;
   final bool vehicleVerified;
   final DateTime? createdAt;
@@ -40,10 +44,26 @@ class AppUser {
   final String vehiclePhoto; // data:image/... base64 (관리자 전용 view 응답)
 
   bool get isAdmin => role == 'admin';
+  final DateTime? lastUsedAt;
+  final bool activeParking;
+
+  final int vehicleSubmissionVersion;
+  final bool ocrMatched;
+  final bool vehicleVerificationRequired;
+  final bool vehicleVerificationExempt;
+
+  bool get hasIncompleteProfile =>
+      nickname.trim().isEmpty || vehicleNumber.trim().isEmpty;
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
     final role = asStr(json['role']);
     return AppUser(
+      vehicleSubmissionVersion: asInt(json['vehicleSubmissionVersion'] ??
+          json['vehicle_submission_version']),
+      ocrMatched: asBool(json['ocrMatched'] ?? json['ocr_matched']),
+      vehicleVerificationRequired: json['vehicleVerificationRequired'] != false,
+      vehicleVerificationExempt: asBool(json['vehicleVerificationExempt'] ??
+          json['vehicle_verification_exempt']),
       email: asStr(json['email']),
       name: asStr(json['name']),
       nickname: asStr(json['nickname']),
@@ -51,15 +71,18 @@ class AppUser {
       status: authStatusFromString(asStrOrNull(json['status'])),
       role: role.isEmpty ? 'user' : role,
       vehicleNumber: firstStr(json, 'vehicleNumber', 'vehicle_number'),
-      phoneNumber: firstStr(json, 'phoneNumber', 'phone_number'),
       profileComplete: asBool(json['profileComplete']),
-      vehicleVerified: asBool(json['vehicle_verified']) || asBool(json['vehicleVerified']),
+      vehicleVerified:
+          asBool(json['vehicle_verified']) || asBool(json['vehicleVerified']),
       createdAt: asDateTimeOrNull(json['createdAt'] ?? json['created_at']),
       approvedAt: asDateTimeOrNull(json['approvedAt'] ?? json['approved_at']),
       approvedBy: firstStr(json, 'approvedBy', 'approved_by'),
-      withdrawnAt: asDateTimeOrNull(json['withdrawn_at'] ?? json['withdrawnAt']),
+      withdrawnAt:
+          asDateTimeOrNull(json['withdrawn_at'] ?? json['withdrawnAt']),
       consentAt: asDateTimeOrNull(json['consent_at'] ?? json['consentAt']),
       vehiclePhoto: firstStr(json, 'vehiclePhoto', 'vehicle_photo'),
+      lastUsedAt: asDateTimeOrNull(json['lastUsedAt'] ?? json['last_used_at']),
+      activeParking: asBool(json['activeParking'] ?? json['active_parking']),
     );
   }
 }

@@ -13,8 +13,9 @@ class SessionInfo {
     required this.approved,
     required this.authType,
     required this.vehicleNumber,
-    required this.phoneNumber,
     required this.profileComplete,
+    this.needsConsent = false,
+    this.vehicleVerificationRequired = true,
   });
 
   final String email;
@@ -26,8 +27,9 @@ class SessionInfo {
   final bool approved;
   final String authType;
   final String vehicleNumber;
-  final String phoneNumber;
   final bool profileComplete;
+  final bool needsConsent;
+  final bool vehicleVerificationRequired;
 
   bool get isAdmin => role == 'admin' && approved;
 
@@ -43,8 +45,9 @@ class SessionInfo {
       approved: asBool(json['approved']),
       authType: asStr(json['authType']),
       vehicleNumber: asStr(json['vehicleNumber']),
-      phoneNumber: asStr(json['phoneNumber']),
       profileComplete: asBool(json['profileComplete']),
+      needsConsent: asBool(json['needsConsent']),
+      vehicleVerificationRequired: json['vehicleVerificationRequired'] != false,
     );
   }
 
@@ -58,8 +61,9 @@ class SessionInfo {
         'approved': approved,
         'authType': authType,
         'vehicleNumber': vehicleNumber,
-        'phoneNumber': phoneNumber,
         'profileComplete': profileComplete,
+        'needsConsent': needsConsent,
+        'vehicleVerificationRequired': vehicleVerificationRequired,
       };
 }
 
@@ -83,11 +87,21 @@ class AuthBootstrap {
 
   factory AuthBootstrap.fromJson(Map<String, dynamic> json) {
     final rawSession = asMapOrNull(json['session']);
+    final needsConsent =
+        asBool(json['needsConsent'] ?? rawSession?['needsConsent']);
     return AuthBootstrap(
       googleEnabled: asBool(json['googleEnabled']),
       googleClientId: asStrOrNull(json['googleClientId']),
-      session: rawSession == null ? null : SessionInfo.fromJson(rawSession),
-      needsConsent: asBool(json['needsConsent']),
+      session: rawSession == null
+          ? null
+          : SessionInfo.fromJson({
+              ...rawSession,
+              'needsConsent': needsConsent,
+              'vehicleVerificationRequired':
+                  json['vehicleVerificationRequired'] ??
+                      rawSession['vehicleVerificationRequired'],
+            }),
+      needsConsent: needsConsent,
       needsPhotoVerification: asBool(json['needsPhotoVerification']),
       pendingUsers: asListOfMaps(json['users']),
     );

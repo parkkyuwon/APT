@@ -84,13 +84,14 @@ class _ChatScreenState extends State<ChatScreen> {
       } else {
         await context.read<ApiServices>().chat.send(text);
       }
+      if (!mounted) return;
       _inputCtrl.clear();
       _editingId = null;
       await _refresh();
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message);
     } on NetworkException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

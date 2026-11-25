@@ -1,50 +1,117 @@
-import 'dart:ui';
+import 'dart:async';
 
-/// Android VIEW 인텐트로 앱이 실행되면 Flutter Engine 이 URI 의 path+query 를
-/// `PlatformDispatcher.defaultRouteName` 에 넣어준다. 정상 실행 시엔 '/' 가 들어옴.
-///
-/// 사용 흐름:
-///  1) main() 에서 [DeepLink.captureInitial()] 호출 → pendingSlotId 저장
-///  2) ShellScreen mount 시 [DeepLink.consumePendingSlot()] 으로 한 번 꺼냄
-///  3) HomeScreen 이 해당 슬롯의 다이얼로그를 자동으로 띄움
+import 'package:flutter/widgets.dart';
+
+import 'foreground_nfc.dart';
+import 'qr_payload.dart';
+
+/// QR/NFC 링크를 로그인과 홈 초기화가 끝날 때까지 보관한다.
+/// [start]는 runApp 이전에 호출해 Navigator보다 먼저 플랫폼 링크를 받는다.
 class DeepLink {
   DeepLink._();
 
+  static final _observer = _DeepLinkObserver();
+  static final _events = _DeepLinkEvents();
+  static final _nfc = ForegroundNfc(handleRoute);
+  static final _slotPattern = RegExp(r'^[a-zA-Z0-9_-]{1,128}$');
   static String? _pendingSlotId;
+  static String? _processingSlotId;
+  static Object? _processingToken;
+  static bool _started = false;
+  static bool get hasPendingSlot => _pendingSlotId != null;
+  static String? get pendingSlotId => _pendingSlotId;
 
-  /// 앱 시작 직후 한 번 호출. 초기 라우트를 분석해 ?slot=<id> 를 추출.
-  static void captureInitial() {
-    final raw = PlatformDispatcher.instance.defaultRouteName;
-    final extracted = _extractSlotId(raw);
-    if (extracted != null) _pendingSlotId = extracted;
+  static void start() {
+    if (_started) return;
+    WidgetsBinding.instance.addObserver(_observer);
+    _started = true;
+    captureInitial();
+    unawaited(_nfc.start());
   }
 
-  /// 외부 VIEW 인텐트가 지정한 slotId. 한 번 소비하면 null 로 클리어.
+  static void stop() {
+    if (!_started) return;
+    WidgetsBinding.instance.removeObserver(_observer);
+    _started = false;
+    unawaited(_nfc.stop());
+  }
+
+  static void addListener(VoidCallback listener) =>
+      _events.addListener(listener);
+  static void removeListener(VoidCallback listener) =>
+      _events.removeListener(listener);
+
+  static void captureInitial() {
+    handleRoute(WidgetsBinding.instance.platformDispatcher.defaultRouteName);
+  }
+
+  /// 앱이 이미 실행 중이어도 동일한 검증과 보관 경로를 사용한다.
+  /// 관련 없는 경로는 false를 반환해 Flutter의 기존 라우팅에 맡긴다.
+  static bool handleRoute(String raw) {
+    try {
+      final uri = Uri.parse(raw);
+      if (uri.hasAuthority) {
+        final expected = Uri.parse(kAppDefaultBaseUrl);
+        if (uri.scheme != expected.scheme ||
+            uri.host != expected.host ||
+            uri.port != expected.port ||
+            uri.userInfo.isNotEmpty) {
+          return false;
+        }
+      } else if (uri.hasScheme) {
+        return false;
+      }
+      if (uri.path != '/index.html') return false;
+      final values = uri.queryParametersAll['slot'];
+      if (values == null || values.length != 1) return false;
+      final slot = values.single.trim();
+      if (!_slotPattern.hasMatch(slot)) return false;
+      setPendingSlot(slot);
+      return true;
+    } on FormatException {
+      return false;
+    }
+  }
+
   static String? consumePendingSlot() {
     final id = _pendingSlotId;
     _pendingSlotId = null;
     return id;
   }
 
-  /// 외부에서 직접 set 가능 (예: MethodChannel 로 onNewIntent 구현 시).
-  static void setPendingSlot(String slotId) {
-    _pendingSlotId = slotId;
+  static Object beginSlotHandling(String slotId) {
+    _processingSlotId = slotId;
+    return _processingToken = Object();
   }
 
-  /// "/index.html?slot=fast50-1" 같은 문자열에서 slot 값 추출.
-  static String? _extractSlotId(String raw) {
-    if (raw.isEmpty || raw == '/') return null;
-    try {
-      // PlatformDispatcher 의 defaultRouteName 은 path+query 가 일반적이라
-      // 절대 URI 가 아닐 수 있음. parse 가 실패해도 query 만 추출 가능.
-      final qIdx = raw.indexOf('?');
-      final query = qIdx >= 0 ? raw.substring(qIdx + 1) : '';
-      if (query.isEmpty) return null;
-      final params = Uri.splitQueryString(query);
-      final slot = params['slot']?.trim();
-      return (slot == null || slot.isEmpty) ? null : slot;
-    } catch (_) {
-      return null;
-    }
+  static void finishSlotHandling(Object token) {
+    if (!identical(token, _processingToken)) return;
+    _processingSlotId = null;
+    _processingToken = null;
   }
+
+  static void setPendingSlot(String slotId) {
+    final slot = slotId.trim();
+    if (!_slotPattern.hasMatch(slot) ||
+        _pendingSlotId == slot ||
+        _processingSlotId == slot) {
+      return;
+    }
+    _pendingSlotId = slot;
+    _events.publish();
+  }
+}
+
+class _DeepLinkEvents extends ChangeNotifier {
+  void publish() => notifyListeners();
+}
+
+class _DeepLinkObserver with WidgetsBindingObserver {
+  @override
+  Future<bool> didPushRoute(String route) async => DeepLink.handleRoute(route);
+
+  @override
+  Future<bool> didPushRouteInformation(
+          RouteInformation routeInformation) async =>
+      DeepLink.handleRoute(routeInformation.uri.toString());
 }
